@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Empleado {
+  id        String   @id @default(cuid())
+  nombre    String
+  apellido  String
+  dni       String   @unique
+  telefono  String?
+  rol       String   @default("Operador")
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  locales       EmpleadoLocal[]
+  turnos        AsignacionTurno[]
+  registroHoras RegistroHoras[]
+
+  @@map("empleados")
+}
+
+model Local {
+  id          String   @id @default(cuid())
+  codigo      String   @unique
+  nombreLocal String   @map("nombre_local")
+  direccion   String
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  empleados     EmpleadoLocal[]
+  turnos        AsignacionTurno[]
+  registroHoras RegistroHoras[]
+
+  @@map("locales")
+}
+
+model EmpleadoLocal {
+  id         String   @id @default(cuid())
+  empleadoId String   @map("empleado_id")
+  localId    String   @map("local_id")
+  createdAt  DateTime @default(now())
+
+  empleado Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
+  local    Local    @relation(fields: [localId], references: [id], onDelete: Cascade)
+
+  @@unique([empleadoId, localId])
+  @@map("empleado_locales")
+}
+
+enum TipoTurno {
+  RECURRENTE
+  PUNTUAL
+}
+
+model AsignacionTurno {
+  id              String    @id @default(cuid())
+  empleadoId      String    @map("empleado_id")
+  localId         String    @map("local_id")
+  tipo            TipoTurno @default(RECURRENTE)
+  diaSemana       Int?      @map("dia_semana") // 1: Lunes, 2: Martes, ..., 7: Domingo
+  fecha           DateTime? // Para turnos puntuales
+  horaInicio      String    @map("hora_inicio") // HH:mm
+  horaFin         String    @map("hora_fin") // HH:mm
+  cruzaMedianoche Boolean   @default(false) @map("cruza_medianoche")
+  duracionHoras   Float     @map("duracion_horas")
+  notas           String?
+  activo          Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  empleado Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
+  local    Local    @relation(fields: [localId], references: [id], onDelete: Cascade)
+
+  @@index([empleadoId, diaSemana])
+  @@index([empleadoId, fecha])
+  @@index([localId])
+  @@map("asignaciones_turnos")
+}
+
+model RegistroHoras {
+  id              String   @id @default(cuid())
+  empleadoId      String   @map("empleado_id")
+  localId         String   @map("local_id")
+  anio            Int
+  mes             Int // 1 - 12
+  horasCalculadas Float    @map("horas_calculadas")
+  detalleCalculo  String?  @map("detalle_calculo") // Resumen JSON serializado
+  fechaCalculo    DateTime @default(now()) @map("fecha_calculo")
+
+  empleado Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
+  local    Local    @relation(fields: [localId], references: [id], onDelete: Cascade)
+
+  @@unique([empleadoId, localId, anio, mes])
+  @@map("registros_horas")
+}
