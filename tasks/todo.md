@@ -16,3 +16,4 @@
 | TASK-012 | Actualización de Locales Maestros (5 locales solicitados) | `COMPLETADO` | Backend Lead | MarMau, ModaShop, Punto 1, Punto 2, Punto 3 |
 | TASK-013 | Sistema de Eliminación de Locales (Baja Lógica + Baja Definitiva) | `COMPLETADO` | Full Stack | Flujo con doble confirmación modal |
 | TASK-014 | Sistema de Eliminación de Empleados (Baja Lógica + Baja Definitiva) | `COMPLETADO` | Full Stack | Flujo con doble confirmación modal para personal |
+| TASK-015 | Sistema de Autenticación y Control de Roles (Supervisor y Superusuario) | `COMPLETADO` | Full Stack | Login, JWT middleware, permisos granulares y gestión de supervisores |

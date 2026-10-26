@@ -50,3 +50,8 @@ Sistema integral para la gestión de empleados, sucursales/locales, asignación 
 - [x] Base de Datos sincronizada con los 5 locales oficiales: **MarMau**, **ModaShop**, **Punto 1**, **Punto 2**, **Punto 3**.
 - [x] Flujo de Bajas de Sucursales en 2 pasos: Baja Lógica (inactivación con confirmación) y Baja Definitiva (borrado físico con advertencia modal).
 - [x] Flujo de Bajas de Personal en 2 pasos: Baja Lógica (inactivación en nómina con confirmación) y Baja Definitiva (borrado permanente con advertencia modal).
+- [x] Sistema de Autenticación y Control de Accesos por Roles (Superusuario y Supervisor):
+  - Pantalla `/login` con sesión JWT en cookie segura HttpOnly.
+  - Middleware de protección de rutas y restricción a `/usuarios`.
+  - Panel exclusivo de Superusuario para crear, alternar estado y eliminar cuentas de supervisores.
+  - Blindaje en Server Actions: solo `SUPERUSUARIO` puede ejecutar `darBajaDefinitivaLocal` y `darBajaDefinitivaEmpleado`.
