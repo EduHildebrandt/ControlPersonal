@@ -152,7 +152,7 @@ export function LocalesClient({
 
         <button
           onClick={() => openModal()}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white font-medium text-sm hover:bg-blue-700 transition shadow-sm"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white font-medium text-sm hover:bg-blue-700 transition shadow-sm"
         >
           <Plus className="w-4 h-4" />
           <span>Nuevo Local</span>
@@ -326,7 +326,7 @@ export function LocalesClient({
       {/* Modal de Confirmación para Bajas */}
       {confirmModal.open && confirmModal.local && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full max-h-[92vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
             <div className="p-6">
               <div className="flex items-center gap-3">
                 <div
@@ -414,8 +414,8 @@ export function LocalesClient({
       {/* Modal Alta / Edición */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
               <h3 className="font-bold text-slate-900 text-base">
                 {editingLocal ? "Editar Sucursal / Local" : "Registrar Nueva Sucursal"}
               </h3>
@@ -427,7 +427,7 @@ export function LocalesClient({
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
               {errorMsg && (
                 <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">
                   {errorMsg}

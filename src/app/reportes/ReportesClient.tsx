@@ -215,11 +215,11 @@ export function ReportesClient({ empleados }: { empleados: EmpleadoOption[] }) {
             </div>
 
             {/* Botones de Exportación */}
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
               <button
                 onClick={handleDescargarExcel}
                 disabled={exportando}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition shadow-sm disabled:opacity-50"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 transition shadow-sm disabled:opacity-50"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Exportar Excel (.xlsx)</span>
@@ -227,7 +227,7 @@ export function ReportesClient({ empleados }: { empleados: EmpleadoOption[] }) {
 
               <button
                 onClick={handleDescargarPDF}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition shadow-sm"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition shadow-sm"
               >
                 <FileText className="w-3.5 h-3.5 text-rose-400" />
                 <span>Exportar PDF</span>
@@ -328,50 +328,77 @@ export function ReportesClient({ empleados }: { empleados: EmpleadoOption[] }) {
                 No hay turnos registrados en este período.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-200">
-                    <tr>
-                      <th className="px-5 py-3">Fecha</th>
-                      <th className="px-5 py-3">Día</th>
-                      <th className="px-5 py-3">Sucursal / Local</th>
-                      <th className="px-5 py-3">Horario</th>
-                      <th className="px-5 py-3 text-center">Tipo</th>
-                      <th className="px-5 py-3 text-right">Duración</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {resumen.historialTurnos.map((t, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/70 transition">
-                        <td className="px-5 py-3 font-mono font-medium text-slate-800">
-                          {t.fechaStr}
-                        </td>
-                        <td className="px-5 py-3 font-semibold text-slate-700">{t.diaNombre}</td>
-                        <td className="px-5 py-3 text-slate-600 flex items-center gap-1.5">
-                          <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                          <span>{t.localNombre}</span>
-                        </td>
-                        <td className="px-5 py-3 font-mono font-semibold text-slate-800">
-                          {t.horario}
-                        </td>
-                        <td className="px-5 py-3 text-center">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                              t.tipo === "RECURRENTE"
-                                ? "bg-blue-50 text-blue-700"
-                                : "bg-purple-50 text-purple-700"
-                            }`}
-                          >
-                            {t.tipo}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3 text-right font-bold text-blue-700">
+              <div>
+                {/* VISTA MÓVIL: Tarjetas de turnos computados */}
+                <div className="divide-y divide-slate-100 md:hidden">
+                  {resumen.historialTurnos.map((t, idx) => (
+                    <div key={idx} className="p-3.5 space-y-1.5 hover:bg-slate-50 transition">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-mono font-bold text-slate-900">
+                          {t.fechaStr} ({t.diaNombre})
+                        </span>
+                        <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded text-[11px]">
                           {t.duracionHoras} hrs
-                        </td>
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs text-slate-600">
+                        <span className="flex items-center gap-1 font-medium">
+                          <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                          {t.localNombre}
+                        </span>
+                        <span className="font-mono font-medium text-slate-700">{t.horario}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* VISTA ESCRITORIO Y TABLET: Tabla Completa */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-200">
+                      <tr>
+                        <th className="px-5 py-3">Fecha</th>
+                        <th className="px-5 py-3">Día</th>
+                        <th className="px-5 py-3">Sucursal / Local</th>
+                        <th className="px-5 py-3">Horario</th>
+                        <th className="px-5 py-3 text-center">Tipo</th>
+                        <th className="px-5 py-3 text-right">Duración</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {resumen.historialTurnos.map((t, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/70 transition">
+                          <td className="px-5 py-3 font-mono font-medium text-slate-800">
+                            {t.fechaStr}
+                          </td>
+                          <td className="px-5 py-3 font-semibold text-slate-700">{t.diaNombre}</td>
+                          <td className="px-5 py-3 text-slate-600 flex items-center gap-1.5">
+                            <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{t.localNombre}</span>
+                          </td>
+                          <td className="px-5 py-3 font-mono font-semibold text-slate-800">
+                            {t.horario}
+                          </td>
+                          <td className="px-5 py-3 text-center">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                t.tipo === "RECURRENTE"
+                                  ? "bg-blue-50 text-blue-700"
+                                  : "bg-purple-50 text-purple-700"
+                              }`}
+                            >
+                              {t.tipo}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 text-right font-bold text-blue-700">
+                            {t.duracionHoras} hrs
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>

@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Sparkles,
   Printer,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import { DIAS_SEMANA, formatHoras } from "@/lib/utils";
 import { calcularDuracionHoras } from "@/lib/shifts";
@@ -77,6 +78,9 @@ export function TurnosClient({
   const [modalOpen, setModalOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Selector de día para pantallas móviles / tablets
+  const [diaMovilSeleccionado, setDiaMovilSeleccionado] = useState<number | "ALL">("ALL");
 
   // Form states
   const [empleadoId, setEmpleadoId] = useState(empleados[0]?.id || "");
@@ -159,8 +163,14 @@ export function TurnosClient({
   const localSeleccionado = locales.find((l) => l.id === filtroLocal);
   const empleadoSeleccionado = empleados.find((e) => e.id === filtroEmpleado);
 
+  // Días a renderizar según el selector móvil
+  const diasAMostrar =
+    diaMovilSeleccionado === "ALL"
+      ? DIAS_SEMANA
+      : DIAS_SEMANA.filter((d) => d.id === diaMovilSeleccionado);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       {/* Printable Header (Visible solo al imprimir) */}
       <div className="print-only-header pb-4 mb-4 border-b-2 border-slate-900">
         <div className="flex items-center justify-between">
@@ -184,31 +194,31 @@ export function TurnosClient({
       </div>
 
       {/* Screen Header bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 no-print">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <CalendarDays className="w-6 h-6 text-blue-600" />
-            Grilla Semanal y Asignación de Turnos (24/7)
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <CalendarDays className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+            Grilla Semanal de Turnos (24/7)
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Programa horarios semanales repetitivos o puntuales con validación automática de solapamientos.
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">
+            Programa horarios semanales repetitivos o puntuales con validación anti-solapamiento.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
           <button
             onClick={handleImprimirGrilla}
-            className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg bg-white border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-50 transition shadow-sm"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-3 sm:px-3.5 py-2.5 rounded-lg bg-white border border-slate-300 text-slate-700 font-semibold text-xs sm:text-sm hover:bg-slate-50 transition shadow-sm"
             title="Imprimir grilla o guardar como PDF"
           >
             <Printer className="w-4 h-4 text-slate-600" />
-            <span>Imprimir Grilla</span>
+            <span>Imprimir</span>
           </button>
 
           <button
             onClick={() => openModal()}
             disabled={empleados.length === 0 || locales.length === 0}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white font-medium text-sm hover:bg-blue-700 transition shadow-sm disabled:opacity-50"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-lg bg-blue-600 text-white font-semibold text-xs sm:text-sm hover:bg-blue-700 transition shadow-sm disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
             <span>Asignar Turno</span>
@@ -217,44 +227,46 @@ export function TurnosClient({
       </div>
 
       {/* Bar Filters */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-4 text-xs no-print">
-        <div className="flex items-center gap-2 text-slate-500 font-semibold">
-          <Filter className="w-4 h-4" />
-          <span>Filtrar por:</span>
+      <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-3 text-xs no-print">
+        <div className="flex items-center gap-2 text-slate-500 font-semibold shrink-0">
+          <Filter className="w-4 h-4 text-blue-600" />
+          <span>Filtros:</span>
         </div>
 
-        {/* Local Filter */}
-        <div className="flex items-center gap-1.5">
-          <label className="text-slate-600 font-medium">Local:</label>
-          <select
-            value={filtroLocal}
-            onChange={(e) => setFiltroLocal(e.target.value)}
-            className="px-2.5 py-1.5 rounded-md border border-slate-300 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
-          >
-            <option value="ALL">Todos los locales</option>
-            {locales.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.codigo} - {l.nombreLocal}
-              </option>
-            ))}
-          </select>
-        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 flex-1">
+          {/* Local Filter */}
+          <div className="flex items-center gap-2">
+            <label className="text-slate-600 font-medium shrink-0">Local:</label>
+            <select
+              value={filtroLocal}
+              onChange={(e) => setFiltroLocal(e.target.value)}
+              className="w-full px-2.5 py-1.5 rounded-md border border-slate-300 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+            >
+              <option value="ALL">Todos los locales</option>
+              {locales.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.nombreLocal} ({l.codigo})
+                </option>
+              ))}
+            </select>
+          </div>
 
-        {/* Empleado Filter */}
-        <div className="flex items-center gap-1.5">
-          <label className="text-slate-600 font-medium">Empleado:</label>
-          <select
-            value={filtroEmpleado}
-            onChange={(e) => setFiltroEmpleado(e.target.value)}
-            className="px-2.5 py-1.5 rounded-md border border-slate-300 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
-          >
-            <option value="ALL">Todos los colaboradores</option>
-            {empleados.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.nombre} {e.apellido} ({e.rol})
-              </option>
-            ))}
-          </select>
+          {/* Empleado Filter */}
+          <div className="flex items-center gap-2">
+            <label className="text-slate-600 font-medium shrink-0">Personal:</label>
+            <select
+              value={filtroEmpleado}
+              onChange={(e) => setFiltroEmpleado(e.target.value)}
+              className="w-full px-2.5 py-1.5 rounded-md border border-slate-300 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+            >
+              <option value="ALL">Todos los colaboradores</option>
+              {empleados.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.nombre} {e.apellido} ({e.rol})
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {(filtroLocal !== "ALL" || filtroEmpleado !== "ALL") && (
@@ -263,16 +275,45 @@ export function TurnosClient({
               setFiltroLocal("ALL");
               setFiltroEmpleado("ALL");
             }}
-            className="text-blue-600 hover:underline font-medium ml-auto"
+            className="text-blue-600 hover:underline font-medium text-xs self-end sm:self-center"
           >
-            Restablecer filtros
+            Limpiar filtros
           </button>
         )}
       </div>
 
-      {/* Grilla Semanal (7 Columnas de Lunes a Domingo) */}
+      {/* SELECTOR RÁPIDO DE DÍA PARA MÓVILES (Celulares / Tablets pequeñas) */}
+      <div className="lg:hidden no-print">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
+          <button
+            onClick={() => setDiaMovilSeleccionado("ALL")}
+            className={`px-3 py-1.5 rounded-lg font-semibold shrink-0 transition ${
+              diaMovilSeleccionado === "ALL"
+                ? "bg-blue-600 text-white shadow-sm"
+                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+            }`}
+          >
+            Todos los días
+          </button>
+          {DIAS_SEMANA.map((dia) => (
+            <button
+              key={dia.id}
+              onClick={() => setDiaMovilSeleccionado(dia.id)}
+              className={`px-3 py-1.5 rounded-lg font-semibold shrink-0 transition ${
+                diaMovilSeleccionado === dia.id
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+              }`}
+            >
+              {dia.corto}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Grilla Semanal: 1 columna en móvil, 2 en tablets, 7 en notebooks / escritorios */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3 print-grid-7">
-        {DIAS_SEMANA.map((dia) => {
+        {diasAMostrar.map((dia) => {
           const turnosDelDia = turnosFiltrados.filter(
             (t) => t.tipo === "RECURRENTE" && t.diaSemana === dia.id
           );
@@ -282,7 +323,7 @@ export function TurnosClient({
           return (
             <div
               key={dia.id}
-              className="bg-white rounded-xl border border-slate-200/90 shadow-sm flex flex-col min-h-[380px] overflow-hidden print-card"
+              className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col min-h-[320px] lg:min-h-[380px] overflow-hidden print-card"
             >
               {/* Day Header */}
               <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
@@ -311,7 +352,7 @@ export function TurnosClient({
                 {turnosDelDia.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center p-4 text-center text-slate-400">
                     <Clock className="w-6 h-6 mb-1 opacity-40 no-print" />
-                    <span className="text-xs italic">Sin turnos</span>
+                    <span className="text-xs italic">Sin turnos asignados</span>
                   </div>
                 ) : (
                   turnosDelDia.map((turno) => (
@@ -319,20 +360,20 @@ export function TurnosClient({
                       key={turno.id}
                       className={`p-2.5 rounded-lg border text-xs relative group transition-all ${
                         turno.cruzaMedianoche
-                          ? "bg-indigo-50/60 border-indigo-200"
-                          : "bg-slate-50/90 border-slate-200 hover:border-slate-300"
+                          ? "bg-indigo-50/70 border-indigo-200"
+                          : "bg-slate-50 border-slate-200 hover:border-slate-300"
                       }`}
                     >
                       {/* Horario y Badges */}
                       <div className="flex items-center justify-between gap-1 mb-1.5">
-                        <span className="font-mono font-bold text-slate-900 flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-blue-600 no-print" />
+                        <span className="font-mono font-bold text-slate-900 flex items-center gap-1 text-[11px] sm:text-xs">
+                          <Clock className="w-3 h-3 text-blue-600 no-print shrink-0" />
                           {turno.horaInicio} - {turno.horaFin}
                         </span>
 
                         {turno.cruzaMedianoche && (
                           <span
-                            className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-800 text-[10px] font-semibold"
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-800 text-[10px] font-semibold shrink-0"
                             title="Turno nocturno: Cruza la medianoche"
                           >
                             <Moon className="w-2.5 h-2.5 no-print" /> Nocturno
@@ -341,9 +382,9 @@ export function TurnosClient({
                       </div>
 
                       {/* Empleado info */}
-                      <div className="font-medium text-slate-800 flex items-center gap-1 truncate">
+                      <div className="font-semibold text-slate-800 flex items-center gap-1 truncate">
                         <User className="w-3 h-3 text-slate-400 shrink-0 no-print" />
-                        <span className="truncate font-semibold">
+                        <span className="truncate">
                           {turno.empleado.nombre} {turno.empleado.apellido}
                         </span>
                       </div>
@@ -354,14 +395,14 @@ export function TurnosClient({
                           <Building2 className="w-3 h-3 text-emerald-600 shrink-0 no-print" />
                           {turno.local.nombreLocal}
                         </span>
-                        <span className="font-bold text-slate-700">{turno.duracionHoras}h</span>
+                        <span className="font-bold text-slate-700 shrink-0">{turno.duracionHoras}h</span>
                       </div>
 
-                      {/* Delete button (hover, hidden in print) */}
+                      {/* Delete button */}
                       <button
                         onClick={() => handleEliminarTurno(turno.id)}
                         disabled={isPending}
-                        className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-100/60 rounded transition no-print"
+                        className="absolute top-1.5 right-1.5 opacity-80 sm:opacity-0 group-hover:opacity-100 p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-100/60 rounded transition no-print"
                         title="Eliminar turno"
                       >
                         <Trash2 className="w-3 h-3" />
@@ -377,22 +418,22 @@ export function TurnosClient({
 
       {/* Modal Asignar Turno */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 no-print">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-4 no-print overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
               <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
                 <CalendarDays className="w-5 h-5 text-blue-600" />
                 Asignar Turno Horario
               </h3>
               <button
                 onClick={closeModal}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
               {errorMsg && (
                 <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
@@ -405,13 +446,13 @@ export function TurnosClient({
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Modalidad de Asignación *
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setTipo("RECURRENTE")}
                     className={`py-2 px-3 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition ${
                       tipo === "RECURRENTE"
-                        ? "bg-blue-50 border-blue-600 text-blue-700"
+                        ? "bg-blue-50 border-blue-600 text-blue-700 shadow-sm"
                         : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
@@ -423,7 +464,7 @@ export function TurnosClient({
                     onClick={() => setTipo("PUNTUAL")}
                     className={`py-2 px-3 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition ${
                       tipo === "PUNTUAL"
-                        ? "bg-blue-50 border-blue-600 text-blue-700"
+                        ? "bg-blue-50 border-blue-600 text-blue-700 shadow-sm"
                         : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
@@ -434,7 +475,7 @@ export function TurnosClient({
               </div>
 
               {/* Empleado y Local */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Empleado / Personal *
@@ -510,27 +551,27 @@ export function TurnosClient({
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Plantillas Rápidas de Horario:
                 </label>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="grid grid-cols-3 gap-1.5">
                   <button
                     type="button"
                     onClick={() => aplicarPreset("08:00", "16:00")}
-                    className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-[11px] font-medium text-slate-700"
+                    className="px-2 py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-[11px] font-medium text-slate-700 truncate"
                   >
-                    Mañana (08:00 - 16:00)
+                    Mañana 08-16
                   </button>
                   <button
                     type="button"
                     onClick={() => aplicarPreset("16:00", "00:00")}
-                    className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-[11px] font-medium text-slate-700"
+                    className="px-2 py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-[11px] font-medium text-slate-700 truncate"
                   >
-                    Tarde (16:00 - 00:00)
+                    Tarde 16-00
                   </button>
                   <button
                     type="button"
                     onClick={() => aplicarPreset("22:00", "06:00")}
-                    className="px-2 py-1 rounded bg-indigo-50 hover:bg-indigo-100 text-[11px] font-medium text-indigo-700 border border-indigo-200"
+                    className="px-2 py-1.5 rounded bg-indigo-50 hover:bg-indigo-100 text-[11px] font-medium text-indigo-700 border border-indigo-200 truncate"
                   >
-                    Nocturno (22:00 - 06:00)
+                    Noche 22-06
                   </button>
                 </div>
               </div>
@@ -568,7 +609,7 @@ export function TurnosClient({
               <div className="p-3 rounded-lg bg-blue-50/70 border border-blue-200/80 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-blue-600" />
-                  <span className="text-slate-700">Duración Bruta:</span>
+                  <span className="text-slate-700">Duración:</span>
                   <span className="font-bold text-blue-900 text-sm">
                     {calculoEnVivo.duracionHoras} hrs
                   </span>
@@ -594,7 +635,7 @@ export function TurnosClient({
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 shrink-0">
                 <button
                   type="button"
                   onClick={closeModal}
@@ -605,9 +646,9 @@ export function TurnosClient({
                 <button
                   type="submit"
                   disabled={isPending}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 shadow-sm"
                 >
-                  {isPending ? "Validando y guardando..." : "Confirmar Turno"}
+                  {isPending ? "Validando..." : "Confirmar Turno"}
                 </button>
               </div>
             </form>

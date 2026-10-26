@@ -185,7 +185,7 @@ export function EmpleadosClient({
 
         <button
           onClick={() => openModal()}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white font-medium text-sm hover:bg-blue-700 transition shadow-sm"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white font-medium text-sm hover:bg-blue-700 transition shadow-sm"
         >
           <Plus className="w-4 h-4" />
           <span>Nuevo Empleado</span>
@@ -233,167 +233,320 @@ export function EmpleadosClient({
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
-                <tr>
-                  <th className="px-6 py-3.5 font-semibold">Colaborador</th>
-                  <th className="px-6 py-3.5 font-semibold">DNI / ID</th>
-                  <th className="px-6 py-3.5 font-semibold">Rol / Cargo</th>
-                  <th className="px-6 py-3.5 font-semibold">Locales Habilitados</th>
-                  <th className="px-6 py-3.5 font-semibold text-center">Turnos</th>
-                  <th className="px-6 py-3.5 font-semibold text-center">Estado</th>
-                  <th className="px-6 py-3.5 font-semibold text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredEmpleados.map((emp) => (
-                  <tr
-                    key={emp.id}
-                    className={`hover:bg-slate-50/70 transition-colors ${
-                      !emp.activo ? "bg-amber-50/25" : ""
-                    }`}
-                  >
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-slate-900">
-                        {emp.nombre} {emp.apellido}
-                      </div>
-                      {emp.telefono && (
-                        <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                          <Phone className="w-3 h-3 text-slate-400" />
-                          <span>{emp.telefono}</span>
-                        </div>
-                      )}
-                    </td>
-
-                    <td className="px-6 py-4 font-mono text-xs text-slate-600">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
-                        <CreditCard className="w-3 h-3 text-slate-400" />
-                        {emp.dni}
-                      </span>
-                    </td>
-
-                    <td className="px-6 py-4 text-xs font-medium text-slate-700">
-                      <span className="px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 font-medium">
+        <div className="space-y-4">
+          {/* VISTA MÓVIL (celulares y pantallas < md): Tarjetas Touch-Friendly */}
+          <div className="grid grid-cols-1 gap-3 md:hidden">
+            {filteredEmpleados.map((emp) => (
+              <div
+                key={emp.id}
+                className={`p-4 rounded-xl border bg-white shadow-sm transition-all space-y-3 ${
+                  !emp.activo ? "border-amber-200 bg-amber-50/20" : "border-slate-200"
+                }`}
+              >
+                {/* Cabecera de la tarjeta: Nombre y Estado */}
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-sm">
+                      {emp.nombre} {emp.apellido}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700">
                         {emp.rol}
                       </span>
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1 max-w-xs">
-                        {emp.locales.length === 0 ? (
-                          <span className="text-xs text-slate-400 italic">Sin locales</span>
-                        ) : (
-                          emp.locales.map((l) => (
-                            <span
-                              key={l.local.id}
-                              className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200"
-                            >
-                              <Building2 className="w-3 h-3 text-emerald-600" />
-                              {l.local.nombreLocal}
-                            </span>
-                          ))
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4 text-center">
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-700">
-                        <Calendar className="w-3 h-3" />
-                        {emp._count.turnos}
+                      <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                        DNI: {emp.dni}
                       </span>
-                    </td>
+                    </div>
+                  </div>
 
-                    <td className="px-6 py-4 text-center">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                          emp.activo
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : "bg-amber-100 text-amber-800 border border-amber-300"
-                        }`}
-                      >
-                        {emp.activo ? (
-                          <>
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Activo
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3 h-3 text-amber-600" /> Baja Lógica
-                          </>
-                        )}
-                      </span>
-                    </td>
+                  <span
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${
+                      emp.activo
+                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : "bg-amber-100 text-amber-800 border border-amber-300"
+                    }`}
+                  >
+                    {emp.activo ? (
+                      <>
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Activo
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="w-3 h-3 text-amber-600" /> Baja
+                      </>
+                    )}
+                  </span>
+                </div>
 
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => openModal(emp)}
-                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-md transition"
-                          title="Editar colaborador"
+                {/* Info adicional: Teléfono y Turnos */}
+                <div className="flex flex-wrap items-center justify-between text-xs text-slate-600 pt-1 border-t border-slate-100">
+                  {emp.telefono ? (
+                    <a
+                      href={`tel:${emp.telefono}`}
+                      className="inline-flex items-center gap-1 text-blue-600 font-medium py-1"
+                    >
+                      <Phone className="w-3 h-3" />
+                      <span>{emp.telefono}</span>
+                    </a>
+                  ) : (
+                    <span className="text-slate-400 italic">Sin teléfono</span>
+                  )}
+
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-violet-50 text-violet-700">
+                    <Calendar className="w-3 h-3" />
+                    {emp._count.turnos} turnos
+                  </span>
+                </div>
+
+                {/* Locales habilitados */}
+                <div>
+                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+                    Locales Habilitados:
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {emp.locales.length === 0 ? (
+                      <span className="text-xs text-slate-400 italic">Ningún local asignado</span>
+                    ) : (
+                      emp.locales.map((l) => (
+                        <span
+                          key={l.local.id}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200"
                         >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
+                          <Building2 className="w-3 h-3 text-emerald-600" />
+                          {l.local.nombreLocal}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
 
-                        {emp.activo ? (
-                          /* Botón Baja Lógica */
+                {/* Botones de acción móvil */}
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    onClick={() => openModal(emp)}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+                  >
+                    <Edit2 className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Editar</span>
+                  </button>
+
+                  {emp.activo ? (
+                    <button
+                      onClick={() =>
+                        setConfirmModal({
+                          open: true,
+                          tipo: "BAJA_LOGICA",
+                          empleado: emp,
+                        })
+                      }
+                      disabled={isPending}
+                      className="flex-1 inline-flex items-center justify-center gap-1 py-2 px-3 rounded-lg text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition"
+                    >
+                      Baja Lógica
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1.5 flex-1">
+                      <button
+                        onClick={() =>
+                          setConfirmModal({
+                            open: true,
+                            tipo: "REACTIVAR",
+                            empleado: emp,
+                          })
+                        }
+                        disabled={isPending}
+                        className="flex-1 inline-flex items-center justify-center gap-1 py-2 px-2.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        Reactivar
+                      </button>
+
+                      {isSuperusuario && (
+                        <button
+                          onClick={() =>
+                            setConfirmModal({
+                              open: true,
+                              tipo: "BAJA_DEFINITIVA",
+                              empleado: emp,
+                            })
+                          }
+                          disabled={isPending}
+                          className="flex-1 inline-flex items-center justify-center gap-1 py-2 px-2.5 rounded-lg text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          Eliminar
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* VISTA ESCRITORIO Y TABLET (md y superior): Tabla Completa */}
+          <div className="hidden md:block bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
+                  <tr>
+                    <th className="px-6 py-3.5 font-semibold">Colaborador</th>
+                    <th className="px-6 py-3.5 font-semibold">DNI / ID</th>
+                    <th className="px-6 py-3.5 font-semibold">Rol / Cargo</th>
+                    <th className="px-6 py-3.5 font-semibold">Locales Habilitados</th>
+                    <th className="px-6 py-3.5 font-semibold text-center">Turnos</th>
+                    <th className="px-6 py-3.5 font-semibold text-center">Estado</th>
+                    <th className="px-6 py-3.5 font-semibold text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredEmpleados.map((emp) => (
+                    <tr
+                      key={emp.id}
+                      className={`hover:bg-slate-50/70 transition-colors ${
+                        !emp.activo ? "bg-amber-50/25" : ""
+                      }`}
+                    >
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-slate-900">
+                          {emp.nombre} {emp.apellido}
+                        </div>
+                        {emp.telefono && (
+                          <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                            <Phone className="w-3 h-3 text-slate-400" />
+                            <span>{emp.telefono}</span>
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="px-6 py-4 font-mono text-xs text-slate-600">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
+                          <CreditCard className="w-3 h-3 text-slate-400" />
+                          {emp.dni}
+                        </span>
+                      </td>
+
+                      <td className="px-6 py-4 text-xs font-medium text-slate-700">
+                        <span className="px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 font-medium">
+                          {emp.rol}
+                        </span>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-1 max-w-xs">
+                          {emp.locales.length === 0 ? (
+                            <span className="text-xs text-slate-400 italic">Sin locales</span>
+                          ) : (
+                            emp.locales.map((l) => (
+                              <span
+                                key={l.local.id}
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200"
+                              >
+                                <Building2 className="w-3 h-3 text-emerald-600" />
+                                {l.local.nombreLocal}
+                              </span>
+                            ))
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 text-center">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-700">
+                          <Calendar className="w-3 h-3" />
+                          {emp._count.turnos}
+                        </span>
+                      </td>
+
+                      <td className="px-6 py-4 text-center">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            emp.activo
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : "bg-amber-100 text-amber-800 border border-amber-300"
+                          }`}
+                        >
+                          {emp.activo ? (
+                            <>
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Activo
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="w-3 h-3 text-amber-600" /> Baja Lógica
+                            </>
+                          )}
+                        </span>
+                      </td>
+
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() =>
-                              setConfirmModal({
-                                open: true,
-                                tipo: "BAJA_LOGICA",
-                                empleado: emp,
-                              })
-                            }
-                            disabled={isPending}
-                            className="text-xs font-semibold px-2.5 py-1 rounded text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition"
-                            title="Dar de baja lógica"
+                            onClick={() => openModal(emp)}
+                            className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-md transition"
+                            title="Editar colaborador"
                           >
-                            Baja Lógica
+                            <Edit2 className="w-4 h-4" />
                           </button>
-                        ) : (
-                          /* Acciones en Baja Lógica: Reactivar o Baja Definitiva */
-                          <div className="flex items-center gap-1">
+
+                          {emp.activo ? (
+                            /* Botón Baja Lógica */
                             <button
                               onClick={() =>
                                 setConfirmModal({
-                                open: true,
-                                tipo: "REACTIVAR",
-                                empleado: emp,
-                              })
-                            }
+                                  open: true,
+                                  tipo: "BAJA_LOGICA",
+                                  empleado: emp,
+                                })
+                              }
                               disabled={isPending}
-                              className="p-1 rounded text-emerald-700 hover:bg-emerald-50 transition"
-                              title="Reactivar empleado"
+                              className="text-xs font-semibold px-2.5 py-1 rounded text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition"
+                              title="Dar de baja lógica"
                             >
-                              <RotateCcw className="w-3.5 h-3.5" />
+                              Baja Lógica
                             </button>
-
-                            {isSuperusuario && (
+                          ) : (
+                            /* Acciones en Baja Lógica: Reactivar o Baja Definitiva */
+                            <div className="flex items-center gap-1">
                               <button
                                 onClick={() =>
                                   setConfirmModal({
                                     open: true,
-                                    tipo: "BAJA_DEFINITIVA",
+                                    tipo: "REACTIVAR",
                                     empleado: emp,
                                   })
                                 }
                                 disabled={isPending}
-                                className="text-xs font-bold px-2 py-1 rounded text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition flex items-center gap-1"
-                                title="Eliminar definitivamente de la base de datos (Solo Superusuario)"
+                                className="p-1 rounded text-emerald-700 hover:bg-emerald-50 transition"
+                                title="Reactivar empleado"
                               >
-                                <Trash2 className="w-3 h-3" />
-                                Baja Definitiva
+                                <RotateCcw className="w-3.5 h-3.5" />
                               </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+                              {isSuperusuario && (
+                                <button
+                                  onClick={() =>
+                                    setConfirmModal({
+                                      open: true,
+                                      tipo: "BAJA_DEFINITIVA",
+                                      empleado: emp,
+                                    })
+                                  }
+                                  disabled={isPending}
+                                  className="text-xs font-bold px-2 py-1 rounded text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition flex items-center gap-1"
+                                  title="Eliminar definitivamente de la base de datos (Solo Superusuario)"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  Baja Definitiva
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -401,7 +554,7 @@ export function EmpleadosClient({
       {/* Modal de Confirmación para Bajas de Personal */}
       {confirmModal.open && confirmModal.empleado && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full max-h-[92vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
             <div className="p-6">
               <div className="flex items-center gap-3">
                 <div
@@ -489,8 +642,8 @@ export function EmpleadosClient({
       {/* Modal Alta / Edición de Empleado */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
               <h3 className="font-bold text-slate-900 text-base">
                 {editingEmpleado ? "Editar Colaborador" : "Dar de Alta Nuevo Colaborador"}
               </h3>
@@ -502,7 +655,7 @@ export function EmpleadosClient({
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
               {errorMsg && (
                 <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">
                   {errorMsg}

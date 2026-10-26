@@ -88,15 +88,98 @@ export function UsuariosClient({ initialUsuarios }: { initialUsuarios: UsuarioIt
             setErrorMsg(null);
             setModalOpen(true);
           }}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-amber-600 text-white font-medium text-sm hover:bg-amber-700 transition shadow-sm"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-amber-600 text-white font-medium text-sm hover:bg-amber-700 transition shadow-sm"
         >
           <Plus className="w-4 h-4" />
           <span>Nuevo Supervisor</span>
         </button>
       </div>
 
-      {/* Tabla de Usuarios */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* VISTA MÓVIL (celulares y tablets pequeñas < md) */}
+      <div className="grid grid-cols-1 gap-3 md:hidden">
+        {usuarios.map((u) => {
+          const isSuper = u.rol === "SUPERUSUARIO";
+          return (
+            <div
+              key={u.id}
+              className="p-4 rounded-xl border border-slate-200 bg-white shadow-sm space-y-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold ${
+                      isSuper ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"
+                    }`}
+                  >
+                    {u.nombre.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-sm">{u.nombre}</h3>
+                    <p className="text-xs text-slate-500 font-mono">{u.email}</p>
+                  </div>
+                </div>
+
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                    isSuper
+                      ? "bg-amber-50 text-amber-700 border border-amber-200"
+                      : "bg-blue-50 text-blue-700 border border-blue-200"
+                  }`}
+                >
+                  <Shield className="w-3 h-3" />
+                  {u.rol}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                <span
+                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-medium ${
+                    u.activo ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  {u.activo ? (
+                    <>
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Activo
+                    </>
+                  ) : (
+                    <>
+                      <XCircle className="w-3 h-3 text-slate-400" /> Inactivo
+                    </>
+                  )}
+                </span>
+
+                {!isSuper && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleToggle(u)}
+                      disabled={isPending}
+                      className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg transition ${
+                        u.activo
+                          ? "text-amber-700 hover:bg-amber-50 border border-amber-200"
+                          : "text-emerald-700 hover:bg-emerald-50 border border-emerald-200"
+                      }`}
+                    >
+                      {u.activo ? "Desactivar" : "Activar"}
+                    </button>
+
+                    <button
+                      onClick={() => setConfirmModal({ open: true, usuario: u })}
+                      disabled={isPending}
+                      className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                      title="Eliminar supervisor"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* VISTA ESCRITORIO Y TABLET (md y superior): Tabla de Usuarios */}
+      <div className="hidden md:block bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50 border-b border-slate-200 text-xs text-slate-500 uppercase tracking-wider">
@@ -202,8 +285,8 @@ export function UsuariosClient({ initialUsuarios }: { initialUsuarios: UsuarioIt
       {/* Modal Crear Supervisor */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
               <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
                 <UserCog className="w-5 h-5 text-amber-600" />
                 Registrar Nuevo Supervisor
@@ -216,7 +299,7 @@ export function UsuariosClient({ initialUsuarios }: { initialUsuarios: UsuarioIt
               </button>
             </div>
 
-            <form onSubmit={handleCreate} className="p-6 space-y-4">
+            <form onSubmit={handleCreate} className="p-6 space-y-4 overflow-y-auto flex-1">
               {errorMsg && (
                 <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">
                   {errorMsg}
@@ -303,7 +386,7 @@ export function UsuariosClient({ initialUsuarios }: { initialUsuarios: UsuarioIt
       {/* Modal Confirmar Eliminación */}
       {confirmModal.open && confirmModal.usuario && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full p-6 max-h-[92vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5" />
