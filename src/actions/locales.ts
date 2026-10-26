@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireSuperusuario, requireAuth } from "@/lib/auth";
 
 export async function getLocales() {
   try {
@@ -127,6 +128,8 @@ export async function reactivarLocal(id: string) {
  */
 export async function darBajaDefinitivaLocal(id: string) {
   try {
+    await requireSuperusuario();
+
     const local = await prisma.local.findUnique({
       where: { id },
     });

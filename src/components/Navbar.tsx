@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clock, Calendar, CheckCircle2 } from "lucide-react";
+import { Calendar, CheckCircle2 } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 export function Navbar() {
+  const pathname = usePathname();
   const [currentDateTime, setCurrentDateTime] = useState<string>("");
 
   useEffect(() => {
@@ -20,6 +22,8 @@ export function Navbar() {
     };
     updateTime();
   }, []);
+
+  if (pathname === "/login") return null;
 
   return (
     <header className="h-16 border-b border-slate-200 bg-white/80 backdrop-blur-md sticky top-0 z-30 px-6 flex items-center justify-between">

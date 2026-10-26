@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireSuperusuario } from "@/lib/auth";
 
 export async function getEmpleados() {
   try {
@@ -191,6 +192,8 @@ export async function reactivarEmpleado(id: string) {
  */
 export async function darBajaDefinitivaEmpleado(id: string) {
   try {
+    await requireSuperusuario();
+
     const empleado = await prisma.empleado.findUnique({
       where: { id },
     });

@@ -35,7 +35,13 @@ interface LocalItem {
   };
 }
 
-export function LocalesClient({ initialLocales }: { initialLocales: LocalItem[] }) {
+export function LocalesClient({
+  initialLocales,
+  isSuperusuario = false,
+}: {
+  initialLocales: LocalItem[];
+  isSuperusuario?: boolean;
+}) {
   const [locales, setLocales] = useState<LocalItem[]>(initialLocales);
   const [searchTerm, setSearchTerm] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -291,21 +297,23 @@ export function LocalesClient({ initialLocales }: { initialLocales: LocalItem[] 
                         <RotateCcw className="w-3.5 h-3.5" />
                       </button>
 
-                      <button
-                        onClick={() =>
-                          setConfirmModal({
-                            open: true,
-                            tipo: "BAJA_DEFINITIVA",
-                            local,
-                          })
-                        }
-                        disabled={isPending}
-                        className="text-xs font-bold px-2 py-1 rounded text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition flex items-center gap-1"
-                        title="Eliminar definitivamente de la base de datos"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                        Baja Definitiva
-                      </button>
+                      {isSuperusuario && (
+                        <button
+                          onClick={() =>
+                            setConfirmModal({
+                              open: true,
+                              tipo: "BAJA_DEFINITIVA",
+                              local,
+                            })
+                          }
+                          disabled={isPending}
+                          className="text-xs font-bold px-2 py-1 rounded text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition flex items-center gap-1"
+                          title="Eliminar definitivamente de la base de datos (Solo Superusuario)"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          Baja Definitiva
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

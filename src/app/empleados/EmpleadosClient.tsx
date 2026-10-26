@@ -50,9 +50,11 @@ interface EmpleadoItem {
 export function EmpleadosClient({
   initialEmpleados,
   localesDisponibles,
+  isSuperusuario = false,
 }: {
   initialEmpleados: EmpleadoItem[];
   localesDisponibles: LocalOption[];
+  isSuperusuario?: boolean;
 }) {
   const [empleados, setEmpleados] = useState<EmpleadoItem[]>(initialEmpleados);
   const [searchTerm, setSearchTerm] = useState("");
@@ -367,21 +369,23 @@ export function EmpleadosClient({
                               <RotateCcw className="w-3.5 h-3.5" />
                             </button>
 
-                            <button
-                              onClick={() =>
-                                setConfirmModal({
-                                open: true,
-                                tipo: "BAJA_DEFINITIVA",
-                                empleado: emp,
-                              })
-                            }
-                              disabled={isPending}
-                              className="text-xs font-bold px-2 py-1 rounded text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition flex items-center gap-1"
-                              title="Eliminar definitivamente de la base de datos"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                              Baja Definitiva
-                            </button>
+                            {isSuperusuario && (
+                              <button
+                                onClick={() =>
+                                  setConfirmModal({
+                                    open: true,
+                                    tipo: "BAJA_DEFINITIVA",
+                                    empleado: emp,
+                                  })
+                                }
+                                disabled={isPending}
+                                className="text-xs font-bold px-2 py-1 rounded text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition flex items-center gap-1"
+                                title="Eliminar definitivamente de la base de datos (Solo Superusuario)"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                Baja Definitiva
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>

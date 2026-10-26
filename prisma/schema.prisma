@@ -101,3 +101,21 @@ model RegistroHoras {
   @@unique([empleadoId, localId, anio, mes])
   @@map("registros_horas")
 }
+
+enum RolUsuario {
+  SUPERUSUARIO
+  SUPERVISOR
+}
+
+model Usuario {
+  id        String     @id @default(cuid())
+  nombre    String
+  email     String     @unique
+  password  String
+  rol       RolUsuario @default(SUPERVISOR)
+  activo    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("usuarios")
+}
