@@ -16,6 +16,7 @@ import {
   Sparkles,
   Printer,
   Calendar as CalendarIcon,
+  Edit2,
 } from "lucide-react";
 import { DIAS_SEMANA, formatHoras } from "@/lib/utils";
 import { calcularDuracionHoras } from "@/lib/shifts";
@@ -82,6 +83,9 @@ export function TurnosClient({
   // Selector de día para pantallas móviles / tablets
   const [diaMovilSeleccionado, setDiaMovilSeleccionado] = useState<number | "ALL">("ALL");
 
+  // Edición de turno
+  const [editingTurnoId, setEditingTurnoId] = useState<string | null>(null);
+
   // Form states
   const [empleadoId, setEmpleadoId] = useState(empleados[0]?.id || "");
   const [localId, setLocalId] = useState(locales[0]?.id || "");
@@ -97,17 +101,40 @@ export function TurnosClient({
     return calcularDuracionHoras(horaInicio, horaFin);
   }, [horaInicio, horaFin]);
 
-  const openModal = (defaultDia?: number) => {
+  const openModal = (defaultDia?: number, turnoToEdit?: TurnoItem) => {
     setErrorMsg(null);
-    if (defaultDia) {
-      setDiaSemana(defaultDia);
-      setTipo("RECURRENTE");
+    if (turnoToEdit) {
+      setEditingTurnoId(turnoToEdit.id);
+      setEmpleadoId(turnoToEdit.empleadoId);
+      setLocalId(turnoToEdit.localId);
+      setTipo(turnoToEdit.tipo);
+      setDiaSemana(turnoToEdit.diaSemana || 1);
+      setFecha(
+        turnoToEdit.fecha
+          ? new Date(turnoToEdit.fecha).toISOString().substring(0, 10)
+          : new Date().toISOString().substring(0, 10)
+      );
+      setHoraInicio(turnoToEdit.horaInicio);
+      setHoraFin(turnoToEdit.horaFin);
+      setNotas(turnoToEdit.notas || "");
+    } else {
+      setEditingTurnoId(null);
+      if (defaultDia) {
+        setDiaSemana(defaultDia);
+        setTipo("RECURRENTE");
+      }
+      setEmpleadoId(empleados[0]?.id || "");
+      setLocalId(locales[0]?.id || "");
+      setHoraInicio("08:00");
+      setHoraFin("16:00");
+      setNotas("");
     }
     setModalOpen(true);
   };
 
   const closeModal = () => {
     setModalOpen(false);
+    setEditingTurnoId(null);
     setErrorMsg(null);
   };
 
@@ -122,6 +149,7 @@ export function TurnosClient({
 
     startTransition(async () => {
       const res = await guardarTurno({
+        id: editingTurnoId || undefined,
         empleadoId,
         localId,
         tipo,
@@ -398,15 +426,25 @@ export function TurnosClient({
                         <span className="font-bold text-slate-700 shrink-0">{turno.duracionHoras}h</span>
                       </div>
 
-                      {/* Delete button */}
-                      <button
-                        onClick={() => handleEliminarTurno(turno.id)}
-                        disabled={isPending}
-                        className="absolute top-1.5 right-1.5 opacity-80 sm:opacity-0 group-hover:opacity-100 p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-100/60 rounded transition no-print"
-                        title="Eliminar turno"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
+                      {/* Actions: Edit & Delete buttons */}
+                      <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 opacity-80 sm:opacity-0 group-hover:opacity-100 transition no-print bg-white/80 backdrop-blur-xs rounded-md p-0.5 shadow-xs border border-slate-200">
+                        <button
+                          onClick={() => openModal(undefined, turno)}
+                          disabled={isPending}
+                          className="p-1 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded transition"
+                          title="Modificar turno"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleEliminarTurno(turno.id)}
+                          disabled={isPending}
+                          className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-100/60 rounded transition"
+                          title="Eliminar turno"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -422,8 +460,17 @@ export function TurnosClient({
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
               <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
-                <CalendarDays className="w-5 h-5 text-blue-600" />
-                Asignar Turno Horario
+                {editingTurnoId ? (
+                  <>
+                    <Edit2 className="w-5 h-5 text-blue-600" />
+                    Modificar Turno Horario
+                  </>
+                ) : (
+                  <>
+                    <CalendarDays className="w-5 h-5 text-blue-600" />
+                    Asignar Turno Horario
+                  </>
+                )}
               </h3>
               <button
                 onClick={closeModal}
@@ -648,7 +695,11 @@ export function TurnosClient({
                   disabled={isPending}
                   className="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 shadow-sm"
                 >
-                  {isPending ? "Validando..." : "Confirmar Turno"}
+                  {isPending
+                    ? "Validando..."
+                    : editingTurnoId
+                    ? "Guardar Modificaciones"
+                    : "Confirmar Turno"}
                 </button>
               </div>
             </form>

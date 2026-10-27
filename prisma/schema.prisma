@@ -14,7 +14,9 @@ model Empleado {
   apellido  String
   dni       String   @unique
   telefono  String?
-  rol       String   @default("Operador")
+  direccion String?
+  correo    String?
+  rol       String   @default("Vendedor")
   activo    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

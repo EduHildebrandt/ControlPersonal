@@ -59,12 +59,25 @@ export async function guardarEmpleado(formData: {
   apellido: string;
   dni: string;
   telefono?: string;
+  direccion?: string;
+  correo?: string;
   rol: string;
   activo?: boolean;
   localesIds?: string[]; // IDs de locales habilitados
 }) {
   try {
-    const { id, nombre, apellido, dni, telefono, rol, activo = true, localesIds = [] } = formData;
+    const {
+      id,
+      nombre,
+      apellido,
+      dni,
+      telefono,
+      direccion,
+      correo,
+      rol,
+      activo = true,
+      localesIds = [],
+    } = formData;
 
     if (!nombre.trim() || !apellido.trim() || !dni.trim()) {
       return { success: false, error: "Nombre, Apellido y DNI son campos obligatorios." };
@@ -91,7 +104,9 @@ export async function guardarEmpleado(formData: {
             apellido: apellido.trim(),
             dni: dni.trim(),
             telefono: telefono?.trim() || null,
-            rol: rol.trim() || "Operador",
+            direccion: direccion?.trim() || null,
+            correo: correo?.trim() || null,
+            rol: rol.trim() || "Vendedor",
             activo,
           },
         });
@@ -131,7 +146,9 @@ export async function guardarEmpleado(formData: {
           apellido: apellido.trim(),
           dni: dni.trim(),
           telefono: telefono?.trim() || null,
-          rol: rol.trim() || "Operador",
+          direccion: direccion?.trim() || null,
+          correo: correo?.trim() || null,
+          rol: rol.trim() || "Vendedor",
           activo,
           locales: {
             create: localesIds.map((localId) => ({
