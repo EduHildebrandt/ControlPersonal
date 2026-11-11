@@ -72,6 +72,8 @@ export async function guardarEmpleado(formData: {
   rol: string;
   activo?: boolean;
   diasVacacionesTotales?: number;
+  tieneCarnetManipulacion?: boolean;
+  vencimientoCarnetManipulacion?: string | Date | null;
   localesIds?: string[]; // IDs de locales habilitados
 }) {
   try {
@@ -86,8 +88,14 @@ export async function guardarEmpleado(formData: {
       rol,
       activo = true,
       diasVacacionesTotales = 14,
+      tieneCarnetManipulacion = false,
+      vencimientoCarnetManipulacion = null,
       localesIds = [],
     } = formData;
+
+    const fechaVencimiento = vencimientoCarnetManipulacion
+      ? new Date(vencimientoCarnetManipulacion)
+      : null;
 
     if (!nombre.trim() || !apellido.trim() || !dni.trim()) {
       return { success: false, error: "Nombre, Apellido y DNI son campos obligatorios." };
@@ -119,6 +127,8 @@ export async function guardarEmpleado(formData: {
             rol: rol.trim() || "Vendedor",
             activo,
             diasVacacionesTotales: Math.max(0, Number(diasVacacionesTotales) || 14),
+            tieneCarnetManipulacion: Boolean(tieneCarnetManipulacion),
+            vencimientoCarnetManipulacion: tieneCarnetManipulacion ? fechaVencimiento : null,
           },
         });
 
@@ -163,6 +173,8 @@ export async function guardarEmpleado(formData: {
           rol: rol.trim() || "Vendedor",
           activo,
           diasVacacionesTotales: Math.max(0, Number(diasVacacionesTotales) || 14),
+          tieneCarnetManipulacion: Boolean(tieneCarnetManipulacion),
+          vencimientoCarnetManipulacion: tieneCarnetManipulacion ? fechaVencimiento : null,
           locales: {
             create: localesIds.map((localId) => ({
               localId,

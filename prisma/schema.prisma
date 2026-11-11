@@ -19,6 +19,8 @@ model Empleado {
   rol                   String   @default("Vendedor")
   activo                Boolean  @default(true)
   diasVacacionesTotales Int      @default(14) @map("dias_vacaciones_totales")
+  tieneCarnetManipulacion Boolean @default(false) @map("tiene_carnet_manipulacion")
+  vencimientoCarnetManipulacion DateTime? @map("vencimiento_carnet_manipulacion")
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
@@ -114,6 +116,7 @@ enum RolUsuario {
 model Usuario {
   id        String     @id @default(cuid())
   nombre    String
+  username  String?    @unique
   email     String     @unique
   password  String
   rol       RolUsuario @default(SUPERVISOR)
@@ -125,16 +128,18 @@ model Usuario {
 }
 
 model Vacacion {
-  id            String   @id @default(cuid())
-  empleadoId    String   @map("empleado_id")
-  fechaInicio   DateTime @map("fecha_inicio")
-  fechaFin      DateTime @map("fecha_fin")
-  diasTomados   Int      @map("dias_tomados")
-  observaciones String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id              String   @id @default(cuid())
+  empleadoId      String   @map("empleado_id")
+  tipo            String   @default("GOZADA") // "GOZADA" o "LIQUIDADA"
+  fechaInicio     DateTime @map("fecha_inicio")
+  fechaFin        DateTime @map("fecha_fin")
+  diasTomados     Int      @map("dias_tomados")
+  horasLiquidadas Float?   @map("horas_liquidadas") // Cantidad de horas liquidadas si tipo == "LIQUIDADA"
+  observaciones   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  empleado      Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
+  empleado        Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
 
   @@index([empleadoId])
   @@map("vacaciones")

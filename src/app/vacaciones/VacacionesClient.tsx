@@ -18,12 +18,14 @@ import {
   CalendarRange,
   Sun,
   ShieldAlert,
+  Coins,
 } from "lucide-react";
 import { MESES, DIAS_SEMANA } from "@/lib/utils";
 import {
   ResumenVacacionEmpleado,
   guardarVacacion,
   eliminarVacacion,
+  liquidarVacaciones,
   getVacacionesCalendario,
 } from "@/actions/vacaciones";
 
@@ -77,6 +79,19 @@ export function VacacionesClient({
 
   // Modal confirmar eliminación
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // Modal Liquidar Vacaciones no gozadas
+  const [liquidarModalOpen, setLiquidarModalOpen] = useState(false);
+  const [liquidarEmpleadoId, setLiquidarEmpleadoId] = useState<string>(
+    initialResumen[0]?.empleadoId || ""
+  );
+  const [liquidarDias, setLiquidarDias] = useState<number>(1);
+  const [liquidarHoras, setLiquidarHoras] = useState<number>(8);
+  const [liquidarFecha, setLiquidarFecha] = useState<string>(new Date().toISOString().substring(0, 10));
+  const [liquidarNotas, setLiquidarNotas] = useState("");
+  const [liquidarErrorMsg, setLiquidarErrorMsg] = useState<string | null>(null);
+
+  const empleadoLiquidar = resumen.find((e) => e.empleadoId === liquidarEmpleadoId);
 
   const [isPending, startTransition] = useTransition();
 
@@ -150,6 +165,29 @@ export function VacacionesClient({
         window.location.reload();
       } else {
         alert(res.error || "No se pudo cancelar el período de vacaciones.");
+      }
+    });
+  };
+
+  // Liquidar Vacaciones No Gozadas
+  const handleLiquidarSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLiquidarErrorMsg(null);
+
+    startTransition(async () => {
+      const res = await liquidarVacaciones({
+        empleadoId: liquidarEmpleadoId,
+        diasALiquidar: Number(liquidarDias),
+        horasEquivalentes: Number(liquidarHoras),
+        fecha: liquidarFecha,
+        observaciones: liquidarNotas,
+      });
+
+      if (!res.success) {
+        setLiquidarErrorMsg(res.error || "Error al liquidar vacaciones.");
+      } else {
+        setLiquidarModalOpen(false);
+        window.location.reload();
       }
     });
   };
@@ -237,16 +275,32 @@ export function VacacionesClient({
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setErrorMsg(null);
-            setModalOpen(true);
-          }}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white font-medium text-sm hover:bg-emerald-700 transition shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Registrar Vacaciones</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => {
+              setLiquidarErrorMsg(null);
+              setLiquidarDias(1);
+              setLiquidarHoras(8);
+              setLiquidarNotas("");
+              setLiquidarModalOpen(true);
+            }}
+            className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-lg bg-amber-600 text-white font-semibold text-xs sm:text-sm hover:bg-amber-700 transition shadow-sm"
+          >
+            <Coins className="w-4 h-4" />
+            <span>Liquidar Vacaciones (Pagar Horas)</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setErrorMsg(null);
+              setModalOpen(true);
+            }}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 text-white font-medium text-xs sm:text-sm hover:bg-emerald-700 transition shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Programar Vacaciones</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -817,6 +871,156 @@ export function VacacionesClient({
                   className="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition disabled:opacity-50"
                 >
                   {isPending ? "Procesando..." : "Confirmar Vacaciones"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL LIQUIDAR VACACIONES (PAGAR HORAS) */}
+      {liquidarModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+              <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                <Coins className="w-5 h-5 text-amber-600" />
+                Liquidar Vacaciones No Gozadas
+              </h3>
+              <button
+                onClick={() => setLiquidarModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleLiquidarSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
+              {liquidarErrorMsg && (
+                <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                  <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{liquidarErrorMsg}</span>
+                </div>
+              )}
+
+              {/* Colaborador */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Colaborador a Liquidar *
+                </label>
+                <select
+                  value={liquidarEmpleadoId}
+                  onChange={(e) => setLiquidarEmpleadoId(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white font-medium"
+                >
+                  {resumen.map((emp) => (
+                    <option key={emp.empleadoId} value={emp.empleadoId}>
+                      {emp.nombre} {emp.apellido} (Saldo: {emp.diasRestantes} días disponibles)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {empleadoLiquidar && (
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-1">
+                  <div className="flex justify-between">
+                    <span>Cupo total anual:</span>
+                    <strong>{empleadoLiquidar.diasVacacionesTotales} días</strong>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Días ya tomados / liquidados:</span>
+                    <span>{empleadoLiquidar.diasTomados} días</span>
+                  </div>
+                  <div className="flex justify-between pt-1 border-t border-amber-200 text-amber-900 font-bold">
+                    <span>Saldo disponible para liquidar:</span>
+                    <span>{empleadoLiquidar.diasRestantes} días</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* Días a liquidar */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Días a Liquidar *
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={empleadoLiquidar ? empleadoLiquidar.diasRestantes : 60}
+                    required
+                    value={liquidarDias}
+                    onChange={(e) => {
+                      const d = Number(e.target.value);
+                      setLiquidarDias(d);
+                      // Sugerir 8hs por día automáticamente
+                      setLiquidarHoras(d * 8);
+                    }}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 font-bold"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-0.5 block">Se descontarán de su saldo</span>
+                </div>
+
+                {/* Horas equivalentes */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Equivalente en Horas a Pagar *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min={1}
+                    required
+                    value={liquidarHoras}
+                    onChange={(e) => setLiquidarHoras(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 font-bold text-amber-700"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-0.5 block">Horas que sumarán al reporte</span>
+                </div>
+              </div>
+
+              {/* Fecha de Liquidación */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Fecha de Liquidación *
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={liquidarFecha}
+                  onChange={(e) => setLiquidarFecha(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              {/* Observaciones */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Motivo / Observaciones (Opcional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: Liquidación solicitada por el empleado"
+                  value={liquidarNotas}
+                  onChange={(e) => setLiquidarNotas(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setLiquidarModalOpen(false)}
+                  className="px-4 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending || !empleadoLiquidar || empleadoLiquidar.diasRestantes <= 0 || liquidarDias > empleadoLiquidar.diasRestantes}
+                  className="px-4 py-2 rounded-lg text-xs font-bold bg-amber-600 text-white hover:bg-amber-700 transition disabled:opacity-50 shadow-sm"
+                >
+                  {isPending ? "Procesando..." : "Confirmar Liquidación de Horas"}
                 </button>
               </div>
             </form>

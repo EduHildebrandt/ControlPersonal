@@ -7,6 +7,7 @@ import { crearSupervisor, eliminarSupervisor, alternarEstadoSupervisor } from "@
 interface UsuarioItem {
   id: string;
   nombre: string;
+  username?: string | null;
   email: string;
   rol: "SUPERUSUARIO" | "SUPERVISOR";
   activo: boolean;
@@ -17,6 +18,7 @@ export function UsuariosClient({ initialUsuarios }: { initialUsuarios: UsuarioIt
   const [usuarios, setUsuarios] = useState<UsuarioItem[]>(initialUsuarios);
   const [modalOpen, setModalOpen] = useState(false);
   const [nombre, setNombre] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -32,12 +34,13 @@ export function UsuariosClient({ initialUsuarios }: { initialUsuarios: UsuarioIt
     setErrorMsg(null);
 
     startTransition(async () => {
-      const res = await crearSupervisor({ nombre, email, password });
+      const res = await crearSupervisor({ nombre, username, email, password });
       if (!res.success) {
         setErrorMsg(res.error || "Error al crear supervisor.");
       } else {
         setModalOpen(false);
         setNombre("");
+        setUsername("");
         setEmail("");
         setPassword("");
         window.location.reload();
@@ -207,7 +210,12 @@ export function UsuariosClient({ initialUsuarios }: { initialUsuarios: UsuarioIt
                         >
                           {u.nombre.substring(0, 2).toUpperCase()}
                         </div>
-                        <span className="font-semibold text-slate-900">{u.nombre}</span>
+                        <div>
+                          <span className="font-semibold text-slate-900 block">{u.nombre}</span>
+                          {u.username && (
+                            <span className="text-xs text-blue-600 font-mono font-medium">@{u.username}</span>
+                          )}
+                        </div>
                       </div>
                     </td>
 
@@ -319,6 +327,22 @@ export function UsuariosClient({ initialUsuarios }: { initialUsuarios: UsuarioIt
                     onChange={(e) => setNombre(e.target.value)}
                     placeholder="Ej: Marcos Pérez"
                     className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nombre de Usuario (para login)
+                </label>
+                <div className="relative">
+                  <span className="text-slate-400 font-mono text-xs absolute left-3 top-2.5 pointer-events-none">@</span>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="ej: andrea (opcional, se autogenera si se deja vacío)"
+                    className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono"
                   />
                 </div>
               </div>

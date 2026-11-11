@@ -6,15 +6,21 @@ import { createSession, removeSession, getSession, requireSuperusuario } from "@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-export async function login(formData: { email: string; password: string }) {
+export async function login(formData: { usuario?: string; email?: string; password: string }) {
   try {
-    const { email, password } = formData;
-    if (!email || !password) {
-      return { success: false, error: "Ingresa tu email y contraseña." };
+    const rawIdentifier = (formData.usuario || formData.email || "").trim().toLowerCase();
+    const { password } = formData;
+    if (!rawIdentifier || !password) {
+      return { success: false, error: "Ingresa tu usuario y contraseña." };
     }
 
-    const usuario = await prisma.usuario.findUnique({
-      where: { email: email.trim().toLowerCase() },
+    const usuario = await prisma.usuario.findFirst({
+      where: {
+        OR: [
+          { username: rawIdentifier },
+          { email: rawIdentifier },
+        ],
+      },
     });
 
     if (!usuario || !usuario.activo) {
@@ -58,6 +64,7 @@ export async function getUsuarios() {
       select: {
         id: true,
         nombre: true,
+        username: true,
         email: true,
         rol: true,
         activo: true,
@@ -72,26 +79,46 @@ export async function getUsuarios() {
 
 export async function crearSupervisor(data: {
   nombre: string;
-  email: string;
+  username?: string;
+  email?: string;
   password: string;
 }) {
   const session = await requireSuperusuario();
 
-  const { nombre, email, password } = data;
-  if (!nombre.trim() || !email.trim() || !password) {
-    return { success: false, error: "Todos los campos son obligatorios." };
+  const { nombre, password } = data;
+  let username = (data.username || "").trim().toLowerCase();
+  let email = (data.email || "").trim().toLowerCase();
+
+  if (!nombre.trim() || !password) {
+    return { success: false, error: "El nombre y la contraseña son obligatorios." };
+  }
+
+  // Generar username automático si no se ingresó
+  if (!username) {
+    username = nombre.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  }
+
+  // Generar email automático si no se ingresó
+  if (!email) {
+    email = `${username}@turnomaster.com`;
   }
 
   if (password.length < 6) {
     return { success: false, error: "La contraseña debe tener al menos 6 caracteres." };
   }
 
-  const existing = await prisma.usuario.findUnique({
-    where: { email: email.trim().toLowerCase() },
+  const existingEmail = await prisma.usuario.findUnique({
+    where: { email },
   });
-
-  if (existing) {
+  if (existingEmail) {
     return { success: false, error: "Ya existe un usuario con este correo." };
+  }
+
+  const existingUsername = await prisma.usuario.findUnique({
+    where: { username },
+  });
+  if (existingUsername) {
+    return { success: false, error: `Ya existe un usuario con el nombre de usuario '${username}'.` };
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -99,7 +126,8 @@ export async function crearSupervisor(data: {
   const nuevo = await prisma.usuario.create({
     data: {
       nombre: nombre.trim(),
-      email: email.trim().toLowerCase(),
+      username,
+      email,
       password: hashedPassword,
       rol: "SUPERVISOR",
       activo: true,

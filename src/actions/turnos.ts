@@ -106,13 +106,33 @@ export async function guardarTurno(formData: {
       }
     }
 
-    // Calcular día de la semana correspondiente
+    // 3.5. Validación de Vacaciones (No disponible si está de vacaciones)
     let diaFinal = diaSemana;
     let fechaFinal = null;
     if (tipo === "PUNTUAL" && fecha) {
       fechaFinal = new Date(fecha + "T12:00:00.000Z");
       const dIndex = fechaFinal.getUTCDay();
       diaFinal = dIndex === 0 ? 7 : dIndex;
+
+      const fechaValidar = new Date(fecha + "T00:00:00.000Z");
+      const vacacionActiva = await prisma.vacacion.findFirst({
+        where: {
+          empleadoId,
+          tipo: "GOZADA",
+          fechaInicio: { lte: fechaValidar },
+          fechaFin: { gte: fechaValidar },
+        },
+        include: { empleado: true },
+      });
+
+      if (vacacionActiva) {
+        const inicioStr = new Date(vacacionActiva.fechaInicio).toLocaleDateString("es-AR", { timeZone: "UTC" });
+        const finStr = new Date(vacacionActiva.fechaFin).toLocaleDateString("es-AR", { timeZone: "UTC" });
+        return {
+          success: false,
+          error: `El colaborador ${vacacionActiva.empleado.nombre} ${vacacionActiva.empleado.apellido} NO está disponible: se encuentra de vacaciones del ${inicioStr} al ${finStr}.`,
+        };
+      }
     }
 
     // 4. Guardar o Actualizar turno

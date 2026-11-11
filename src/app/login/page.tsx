@@ -2,12 +2,12 @@
 
 import { useState, useTransition } from "react";
 import { login } from "@/actions/auth";
-import { Clock, Lock, Mail, ShieldAlert, ArrowRight } from "lucide-react";
+import { Clock, Lock, User, ShieldAlert, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [usuario, setUsuario] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -17,7 +17,7 @@ export default function LoginPage() {
     setErrorMsg(null);
 
     startTransition(async () => {
-      const res = await login({ email, password });
+      const res = await login({ usuario, password });
       if (!res.success) {
         setErrorMsg(res.error || "Credenciales incorrectas.");
       } else {
@@ -54,16 +54,18 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Correo Electrónico
+              Nombre de Usuario
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
+              <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3 pointer-events-none" />
               <input
-                type="email"
+                type="text"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="ejemplo@empresa.com"
+                autoCapitalize="none"
+                autoCorrect="off"
+                value={usuario}
+                onChange={(e) => setUsuario(e.target.value)}
+                placeholder="ej: andrea, mauricio, demian o admin"
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               />
             </div>

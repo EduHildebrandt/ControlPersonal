@@ -27,8 +27,8 @@ const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/empleados", label: "Personal", icon: Users },
   { href: "/locales", label: "Locales / Sucursales", icon: Building2 },
-  { href: "/turnos", label: "Grilla de Turnos 24/7", icon: CalendarDays },
-  { href: "/reportes", label: "Reportes Mensuales", icon: FileSpreadsheet },
+  { href: "/turnos", label: "Calendario Semanal de Turnos", icon: CalendarDays },
+  { href: "/reportes", label: "Reporte (liquidacion de horas)", icon: FileSpreadsheet },
   { href: "/vacaciones", label: "Control de Vacaciones", icon: Palmtree },
 ];
 

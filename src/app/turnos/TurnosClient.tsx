@@ -17,8 +17,12 @@ import {
   Printer,
   Calendar as CalendarIcon,
   Edit2,
+  ChevronLeft,
+  ChevronRight,
+  Palmtree,
+  ShieldAlert,
 } from "lucide-react";
-import { DIAS_SEMANA, formatHoras } from "@/lib/utils";
+import { formatHoras } from "@/lib/utils";
 import { calcularDuracionHoras } from "@/lib/shifts";
 import { guardarTurno, eliminarTurno } from "@/actions/turnos";
 
@@ -41,6 +45,15 @@ interface TurnoItem {
     apellido: string;
     dni: string;
     rol: string;
+    tieneCarnetManipulacion?: boolean;
+    vencimientoCarnetManipulacion?: any;
+    vacaciones?: Array<{
+      id: string;
+      tipo?: string;
+      fechaInicio: any;
+      fechaFin: any;
+      diasTomados: number;
+    }>;
   };
   local: {
     id: string;
@@ -61,7 +74,59 @@ interface EmpleadoOption {
   apellido: string;
   dni: string;
   rol: string;
+  tieneCarnetManipulacion?: boolean;
+  vencimientoCarnetManipulacion?: any;
+  vacaciones?: Array<{
+    id: string;
+    tipo?: string;
+    fechaInicio: any;
+    fechaFin: any;
+    diasTomados: number;
+  }>;
   locales: Array<{ localId: string }>;
+}
+
+// Cálculo estándar de semana ISO (1 a 52)
+function getISOWeek(date: Date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+}
+
+// Obtener los 7 días de una semana (Lunes a Domingo)
+function getDaysOfWeek(year: number, week: number) {
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const dayOfWeek = jan4.getUTCDay() || 7;
+  const mondayWeek1 = new Date(jan4);
+  mondayWeek1.setUTCDate(jan4.getUTCDate() - dayOfWeek + 1);
+
+  const monday = new Date(mondayWeek1);
+  monday.setUTCDate(mondayWeek1.getUTCDate() + (week - 1) * 7);
+
+  const days = [];
+  const nombres = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+  const cortos = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+  for (let i = 0; i < 7; i++) {
+    const cur = new Date(monday);
+    cur.setUTCDate(monday.getUTCDate() + i);
+    const yyyy = cur.getUTCFullYear();
+    const mm = (cur.getUTCMonth() + 1).toString().padStart(2, "0");
+    const dd = cur.getUTCDate().toString().padStart(2, "0");
+    const fechaStr = `${yyyy}-${mm}-${dd}`;
+    days.push({
+      diaId: i + 1, // 1=Lunes ... 7=Domingo
+      nombre: nombres[i],
+      corto: cortos[i],
+      fechaStr,
+      displayDate: `${dd}/${mm}`,
+      fullDateStr: `${dd}/${mm}/${yyyy}`,
+      dateObj: cur,
+    });
+  }
+  return days;
 }
 
 export function TurnosClient({
@@ -76,12 +141,22 @@ export function TurnosClient({
   const [turnos, setTurnos] = useState<TurnoItem[]>(initialTurnos);
   const [filtroLocal, setFiltroLocal] = useState<string>("ALL");
   const [filtroEmpleado, setFiltroEmpleado] = useState<string>("ALL");
-  const [filtroTipo, setFiltroTipo] = useState<"ALL" | "RECURRENTE" | "PUNTUAL">("ALL");
+
+  // Navegación Semanal (1 a 52)
+  // Por defecto semana 45 (Noviembre 2026) o la semana actual
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentWeek = getISOWeek(today);
+
+  const [anio, setAnio] = useState<number>(2026);
+  // Si estamos en 2026 arrancamos en semana 45 donde están los turnos cargados
+  const [semana, setSemana] = useState<number>(45);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Selector de día para pantallas móviles / tablets
+  // Selector móvil de día
   const [diaMovilSeleccionado, setDiaMovilSeleccionado] = useState<number | "ALL">("ALL");
 
   // Edición de turno
@@ -90,19 +165,95 @@ export function TurnosClient({
   // Form states
   const [empleadoId, setEmpleadoId] = useState(empleados[0]?.id || "");
   const [localId, setLocalId] = useState(locales[0]?.id || "");
-  const [tipo, setTipo] = useState<"RECURRENTE" | "PUNTUAL">("RECURRENTE");
+  const [tipo, setTipo] = useState<"RECURRENTE" | "PUNTUAL">("PUNTUAL");
   const [diaSemana, setDiaSemana] = useState<number>(1);
   const [fecha, setFecha] = useState<string>(new Date().toISOString().substring(0, 10));
   const [horaInicio, setHoraInicio] = useState("08:00");
   const [horaFin, setHoraFin] = useState("16:00");
   const [notas, setNotas] = useState("");
 
+  // Días de la semana seleccionada (Lunes a Domingo)
+  const diasSemana = useMemo(() => {
+    return getDaysOfWeek(anio, semana);
+  }, [anio, semana]);
+
+  const primerDiaSemana = diasSemana[0];
+  const ultimoDiaSemana = diasSemana[6];
+
+  // Helper: Comprobar si un empleado está de vacaciones en una fecha
+  const getVacacionDeEmpleado = (empId: string, fechaStr: string) => {
+    const emp = empleados.find((e) => e.id === empId);
+    if (!emp?.vacaciones || emp.vacaciones.length === 0) return null;
+
+    const fTarget = new Date(fechaStr + "T00:00:00Z");
+    for (const v of emp.vacaciones) {
+      if (v.tipo && v.tipo !== "GOZADA") continue;
+      const s = new Date(v.fechaInicio);
+      const e = new Date(v.fechaFin);
+      if (fTarget >= s && fTarget <= e) {
+        return v;
+      }
+    }
+    return null;
+  };
+
+  // Helper: Alerta de carnet de manipulación
+  const getCarnetAlerta = (emp: any) => {
+    if (!emp?.tieneCarnetManipulacion || !emp?.vencimientoCarnetManipulacion) return null;
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const venc = new Date(emp.vencimientoCarnetManipulacion);
+    venc.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((venc.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-300 px-1.5 py-0.5 rounded shadow-xs animate-pulse">
+          <AlertTriangle className="w-2.5 h-2.5 text-rose-600 shrink-0" />
+          Carnet Vencido
+        </span>
+      );
+    }
+    if (diffDays <= 30) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded shadow-xs">
+          <AlertTriangle className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+          Carnet vence {diffDays}d
+        </span>
+      );
+    }
+    return null;
+  };
+
+  // Filtrado de turnos
+  const turnosFiltrados = useMemo(() => {
+    return turnos.filter((t) => {
+      if (filtroLocal !== "ALL" && t.localId !== filtroLocal) return false;
+      if (filtroEmpleado !== "ALL" && t.empleadoId !== filtroEmpleado) return false;
+      return true;
+    });
+  }, [turnos, filtroLocal, filtroEmpleado]);
+
   // Duración calculada en vivo
   const calculoEnVivo = useMemo(() => {
     return calcularDuracionHoras(horaInicio, horaFin);
   }, [horaInicio, horaFin]);
 
-  const openModal = (defaultDia?: number, turnoToEdit?: TurnoItem) => {
+  // Chequeo de vacaciones en el modal en tiempo real
+  const conflictoVacacionesModal = useMemo(() => {
+    if (tipo === "PUNTUAL" && fecha && empleadoId) {
+      const v = getVacacionDeEmpleado(empleadoId, fecha);
+      if (v) {
+        const emp = empleados.find((e) => e.id === empleadoId);
+        const sStr = new Date(v.fechaInicio).toLocaleDateString("es-AR", { timeZone: "UTC" });
+        const eStr = new Date(v.fechaFin).toLocaleDateString("es-AR", { timeZone: "UTC" });
+        return `${emp?.nombre} ${emp?.apellido} está de vacaciones del ${sStr} al ${eStr}.`;
+      }
+    }
+    return null;
+  }, [tipo, fecha, empleadoId, empleados]);
+
+  const openModal = (defaultDiaId?: number, defaultFechaStr?: string, turnoToEdit?: TurnoItem) => {
     setErrorMsg(null);
     if (turnoToEdit) {
       setEditingTurnoId(turnoToEdit.id);
@@ -113,16 +264,19 @@ export function TurnosClient({
       setFecha(
         turnoToEdit.fecha
           ? new Date(turnoToEdit.fecha).toISOString().substring(0, 10)
-          : new Date().toISOString().substring(0, 10)
+          : defaultFechaStr || new Date().toISOString().substring(0, 10)
       );
       setHoraInicio(turnoToEdit.horaInicio);
       setHoraFin(turnoToEdit.horaFin);
       setNotas(turnoToEdit.notas || "");
     } else {
       setEditingTurnoId(null);
-      if (defaultDia) {
-        setDiaSemana(defaultDia);
-        setTipo("RECURRENTE");
+      if (defaultFechaStr) {
+        setFecha(defaultFechaStr);
+        setTipo("PUNTUAL");
+      }
+      if (defaultDiaId) {
+        setDiaSemana(defaultDiaId);
       }
       setEmpleadoId(empleados[0]?.id || "");
       setLocalId(locales[0]?.id || "");
@@ -139,14 +293,14 @@ export function TurnosClient({
     setErrorMsg(null);
   };
 
-  const aplicarPreset = (inicio: string, fin: string) => {
-    setHoraInicio(inicio);
-    setHoraFin(fin);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+
+    if (conflictoVacacionesModal) {
+      setErrorMsg(`No es posible asignar el turno: ${conflictoVacacionesModal}`);
+      return;
+    }
 
     startTransition(async () => {
       const res = await guardarTurno({
@@ -154,7 +308,7 @@ export function TurnosClient({
         empleadoId,
         localId,
         tipo,
-        diaSemana: tipo === "RECURRENTE" ? diaSemana : undefined,
+        diaSemana,
         fecha: tipo === "PUNTUAL" ? fecha : undefined,
         horaInicio,
         horaFin,
@@ -162,7 +316,7 @@ export function TurnosClient({
       });
 
       if (!res.success) {
-        setErrorMsg(res.error || "Error al asignar el turno.");
+        setErrorMsg(res.error || "Error al guardar el turno.");
       } else {
         closeModal();
         window.location.reload();
@@ -170,38 +324,55 @@ export function TurnosClient({
     });
   };
 
-  const handleEliminarTurno = async (id: string) => {
-    if (!confirm("¿Deseas eliminar esta asignación de turno?")) return;
+  const handleEliminarTurno = (id: string) => {
+    if (!confirm("¿Estás seguro de eliminar este turno?")) return;
     startTransition(async () => {
-      await eliminarTurno(id);
-      window.location.reload();
+      const res = await eliminarTurno(id);
+      if (res.success) {
+        setTurnos((prev) => prev.filter((t) => t.id !== id));
+      } else {
+        alert(res.error || "Error al eliminar turno.");
+      }
     });
   };
+
+  // Navegación de semana
+  const irSemanaAnterior = () => {
+    if (semana > 1) {
+      setSemana(semana - 1);
+    } else {
+      setSemana(52);
+      setAnio(anio - 1);
+    }
+  };
+
+  const irSemanaSiguiente = () => {
+    if (semana < 52) {
+      setSemana(semana + 1);
+    } else {
+      setSemana(1);
+      setAnio(anio + 1);
+    }
+  };
+
+  const irSemanaActual = () => {
+    setAnio(currentYear);
+    setSemana(currentWeek);
+  };
+
+  // Días a mostrar en móvil
+  const diasAMostrar =
+    diaMovilSeleccionado === "ALL"
+      ? diasSemana
+      : diasSemana.filter((d) => d.diaId === diaMovilSeleccionado);
 
   const handleImprimirGrilla = () => {
     window.print();
   };
 
-  // Filtrado de turnos
-  const turnosFiltrados = turnos.filter((t) => {
-    if (filtroLocal !== "ALL" && t.localId !== filtroLocal) return false;
-    if (filtroEmpleado !== "ALL" && t.empleadoId !== filtroEmpleado) return false;
-    if (filtroTipo !== "ALL" && t.tipo !== filtroTipo) return false;
-    return true;
-  });
-
-  const localSeleccionado = locales.find((l) => l.id === filtroLocal);
-  const empleadoSeleccionado = empleados.find((e) => e.id === filtroEmpleado);
-
-  // Días a renderizar según el selector móvil
-  const diasAMostrar =
-    diaMovilSeleccionado === "ALL"
-      ? DIAS_SEMANA
-      : DIAS_SEMANA.filter((d) => d.id === diaMovilSeleccionado);
-
   return (
     <div className="space-y-5 sm:space-y-6">
-      {/* Printable Header (Visible solo al imprimir) */}
+      {/* Printable Header */}
       <div className="print-only-header pb-4 mb-4 border-b-2 border-slate-900">
         <div className="flex items-center justify-between">
           <div>
@@ -209,36 +380,32 @@ export function TurnosClient({
               SISTEMA DE CONTROL DE PERSONAL - PROGRAMACIÓN SEMANAL DE TURNOS (24/7)
             </h1>
             <p className="text-xs text-slate-600 mt-1">
-              Filtro:{" "}
-              <strong>
-                {localSeleccionado ? `Sucursal: ${localSeleccionado.nombreLocal}` : "Todas las sucursales"} |{" "}
-                {empleadoSeleccionado ? `Colaborador: ${empleadoSeleccionado.nombre} ${empleadoSeleccionado.apellido}` : "Todo el personal"}
-              </strong>
+              Semana {semana} ({primerDiaSemana.fullDateStr} al {ultimoDiaSemana.fullDateStr}) | Puntos y Moda
             </p>
           </div>
           <div className="text-right text-[11px] text-slate-500">
-            <p>Fecha de emisión: {new Date().toLocaleDateString("es-ES")}</p>
+            <p>Fecha de emisión: {new Date().toLocaleDateString("es-AR")}</p>
             <p className="font-semibold text-slate-700">TurnoMaster Pro</p>
           </div>
         </div>
       </div>
 
-      {/* Screen Header bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 no-print">
+      {/* Screen Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <CalendarDays className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
-            Grilla Semanal de Turnos (24/7)
+            <CalendarDays className="w-6 h-6 text-blue-600" />
+            Calendario Semanal de Turnos
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">
-            Programa horarios semanales repetitivos o puntuales con validación anti-solapamiento.
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+            Vista semana a semana (Lunes a Domingo) con nombres de colaboradores claros, control de carnet y vacaciones.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
             onClick={handleImprimirGrilla}
-            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-3 sm:px-3.5 py-2.5 rounded-lg bg-white border border-slate-300 text-slate-700 font-semibold text-xs sm:text-sm hover:bg-slate-50 transition shadow-sm"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-300 text-slate-700 font-semibold text-xs sm:text-sm hover:bg-slate-50 transition shadow-sm"
             title="Imprimir grilla o guardar como PDF"
           >
             <Printer className="w-4 h-4 text-slate-600" />
@@ -248,7 +415,7 @@ export function TurnosClient({
           <button
             onClick={() => openModal()}
             disabled={empleados.length === 0 || locales.length === 0}
-            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-lg bg-blue-600 text-white font-semibold text-xs sm:text-sm hover:bg-blue-700 transition shadow-sm disabled:opacity-50"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold text-xs sm:text-sm hover:bg-blue-700 transition shadow-sm disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
             <span>Asignar Turno</span>
@@ -256,21 +423,87 @@ export function TurnosClient({
         </div>
       </div>
 
+      {/* BARRA SELECTORA DE SEMANA DEL AÑO (1 a 52) */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-sm flex flex-col md:flex-row items-center justify-between gap-3 no-print">
+        <div className="flex items-center gap-2 w-full md:w-auto justify-between md:justify-start">
+          <button
+            onClick={irSemanaAnterior}
+            className="p-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 transition flex items-center gap-1 text-xs font-semibold"
+            title="Semana anterior"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Anterior</span>
+          </button>
+
+          <div className="flex items-center gap-2">
+            <select
+              value={semana}
+              onChange={(e) => setSemana(Number(e.target.value))}
+              className="px-3 py-2 text-xs font-bold rounded-xl border border-blue-300 bg-blue-50/50 text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {Array.from({ length: 52 }, (_, i) => i + 1).map((wNum) => {
+                const wDays = getDaysOfWeek(anio, wNum);
+                return (
+                  <option key={wNum} value={wNum}>
+                    Semana {wNum} ({wDays[0].displayDate} al {wDays[6].displayDate})
+                  </option>
+                );
+              })}
+            </select>
+
+            <select
+              value={anio}
+              onChange={(e) => setAnio(Number(e.target.value))}
+              className="px-2.5 py-2 text-xs font-bold rounded-xl border border-slate-300 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value={2025}>2025</option>
+              <option value={2026}>2026</option>
+              <option value={2027}>2027</option>
+            </select>
+          </div>
+
+          <button
+            onClick={irSemanaSiguiente}
+            className="p-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 transition flex items-center gap-1 text-xs font-semibold"
+            title="Semana siguiente"
+          >
+            <span className="hidden sm:inline">Siguiente</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 w-full md:w-auto justify-between">
+          <div className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold flex items-center gap-1.5">
+            <CalendarIcon className="w-3.5 h-3.5 text-blue-600" />
+            <span>
+              {primerDiaSemana.fullDateStr} al {ultimoDiaSemana.fullDateStr}
+            </span>
+          </div>
+
+          <button
+            onClick={irSemanaActual}
+            className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline px-2 py-1"
+          >
+            Semana Actual
+          </button>
+        </div>
+      </div>
+
       {/* Bar Filters */}
-      <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-3 text-xs no-print">
+      <div className="bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-sm flex flex-col sm:flex-row sm:items-center gap-3 text-xs no-print">
         <div className="flex items-center gap-2 text-slate-500 font-semibold shrink-0">
           <Filter className="w-4 h-4 text-blue-600" />
           <span>Filtros:</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 flex-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
           {/* Local Filter */}
           <div className="flex items-center gap-2">
             <label className="text-slate-600 font-medium shrink-0">Local:</label>
             <select
               value={filtroLocal}
               onChange={(e) => setFiltroLocal(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-md border border-slate-300 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+              className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
             >
               <option value="ALL">Todos los locales</option>
               {locales.map((l) => (
@@ -287,7 +520,7 @@ export function TurnosClient({
             <select
               value={filtroEmpleado}
               onChange={(e) => setFiltroEmpleado(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-md border border-slate-300 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+              className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
             >
               <option value="ALL">Todos los colaboradores</option>
               {empleados.map((e) => (
@@ -297,28 +530,13 @@ export function TurnosClient({
               ))}
             </select>
           </div>
-
-          {/* Modalidad Filter */}
-          <div className="flex items-center gap-2">
-            <label className="text-slate-600 font-medium shrink-0">Tipo:</label>
-            <select
-              value={filtroTipo}
-              onChange={(e) => setFiltroTipo(e.target.value as any)}
-              className="w-full px-2.5 py-1.5 rounded-md border border-slate-300 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
-            >
-              <option value="ALL">Todos (Semanales y Puntuales)</option>
-              <option value="RECURRENTE">Solo Semanales Recurrentes</option>
-              <option value="PUNTUAL">Solo Fechas Puntuales</option>
-            </select>
-          </div>
         </div>
 
-        {(filtroLocal !== "ALL" || filtroEmpleado !== "ALL" || filtroTipo !== "ALL") && (
+        {(filtroLocal !== "ALL" || filtroEmpleado !== "ALL") && (
           <button
             onClick={() => {
               setFiltroLocal("ALL");
               setFiltroEmpleado("ALL");
-              setFiltroTipo("ALL");
             }}
             className="text-blue-600 hover:underline font-medium text-xs self-end sm:self-center"
           >
@@ -327,12 +545,12 @@ export function TurnosClient({
         )}
       </div>
 
-      {/* SELECTOR RÁPIDO DE DÍA PARA MÓVILES (Celulares / Tablets pequeñas) */}
+      {/* SELECTOR MÓVIL DE DÍA */}
       <div className="lg:hidden no-print">
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
           <button
             onClick={() => setDiaMovilSeleccionado("ALL")}
-            className={`px-3 py-1.5 rounded-lg font-semibold shrink-0 transition ${
+            className={`px-3 py-1.5 rounded-xl font-semibold shrink-0 transition ${
               diaMovilSeleccionado === "ALL"
                 ? "bg-blue-600 text-white shadow-sm"
                 : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
@@ -340,140 +558,184 @@ export function TurnosClient({
           >
             Todos los días
           </button>
-          {DIAS_SEMANA.map((dia) => (
+          {diasSemana.map((dia) => (
             <button
-              key={dia.id}
-              onClick={() => setDiaMovilSeleccionado(dia.id)}
-              className={`px-3 py-1.5 rounded-lg font-semibold shrink-0 transition ${
-                diaMovilSeleccionado === dia.id
+              key={dia.diaId}
+              onClick={() => setDiaMovilSeleccionado(dia.diaId)}
+              className={`px-3 py-1.5 rounded-xl font-semibold shrink-0 transition ${
+                diaMovilSeleccionado === dia.diaId
                   ? "bg-blue-600 text-white shadow-sm"
                   : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
               }`}
             >
-              {dia.corto}
+              {dia.corto} {dia.displayDate}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Grilla Semanal: 1 columna en móvil, 2 en tablets, 7 en notebooks / escritorios */}
+      {/* CALENDARIO SEMANAL: 7 COLUMNAS (Lunes a Domingo) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3 print-grid-7">
         {diasAMostrar.map((dia) => {
-          const turnosDelDia = turnosFiltrados.filter((t) => t.diaSemana === dia.id);
+          // Filtrar turnos correspondientes a este día calendario específico
+          const turnosDelDia = turnosFiltrados.filter((t) => {
+            if (t.tipo === "PUNTUAL" && t.fecha) {
+              const tFechaStr =
+                typeof t.fecha === "string"
+                  ? t.fecha.substring(0, 10)
+                  : new Date(t.fecha).toISOString().substring(0, 10);
+              return tFechaStr === dia.fechaStr;
+            }
+            if (t.tipo === "RECURRENTE") {
+              return t.diaSemana === dia.diaId;
+            }
+            return false;
+          });
 
           const totalHorasDia = turnosDelDia.reduce((acc, curr) => acc + curr.duracionHoras, 0);
 
+          // Colaboradores de vacaciones en esta fecha
+          const empleadosDeVacacionesHoy = empleados.filter((emp) =>
+            getVacacionDeEmpleado(emp.id, dia.fechaStr)
+          );
+
           return (
             <div
-              key={dia.id}
-              className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col min-h-[320px] lg:min-h-[380px] overflow-hidden print-card"
+              key={dia.diaId}
+              className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col min-h-[350px] lg:min-h-[440px] overflow-hidden print-card"
             >
               {/* Day Header */}
-              <div className="p-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <div className="p-3 bg-slate-50/90 border-b border-slate-200 flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-slate-800 text-sm">{dia.nombre}</h3>
+                  <h3 className="font-extrabold text-slate-900 text-sm tracking-tight flex items-center gap-1.5">
+                    <span>{dia.nombre}</span>
+                    <span className="text-xs font-semibold text-blue-600">{dia.displayDate}</span>
+                  </h3>
                   <span className="text-[11px] text-slate-500 font-medium">
                     {turnosDelDia.length} {turnosDelDia.length === 1 ? "turno" : "turnos"}
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs font-bold text-blue-700 block">
+                  <span className="text-xs font-black text-slate-800 block">
                     {formatHoras(totalHorasDia)}
                   </span>
                   <button
-                    onClick={() => openModal(dia.id)}
-                    className="p-1 hover:bg-slate-200/70 text-slate-600 rounded transition mt-0.5 no-print"
-                    title={`Agregar turno para ${dia.nombre}`}
+                    onClick={() => openModal(dia.diaId, dia.fechaStr)}
+                    className="p-1 hover:bg-slate-200/70 text-slate-600 rounded-md transition mt-0.5 no-print"
+                    title={`Agregar turno para ${dia.nombre} ${dia.displayDate}`}
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-3.5 h-3.5 text-blue-600" />
                   </button>
                 </div>
               </div>
 
               {/* Day Shifts */}
-              <div className="p-2 space-y-2 flex-1 overflow-y-auto max-h-[500px]">
+              <div className="p-2 space-y-2 flex-1 overflow-y-auto max-h-[550px]">
                 {turnosDelDia.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center p-4 text-center text-slate-400">
-                    <Clock className="w-6 h-6 mb-1 opacity-40 no-print" />
+                    <Clock className="w-6 h-6 mb-1 opacity-30 no-print" />
                     <span className="text-xs italic">Sin turnos asignados</span>
                   </div>
                 ) : (
-                  turnosDelDia.map((turno) => (
-                    <div
-                      key={turno.id}
-                      className={`p-2.5 rounded-lg border text-xs relative group transition-all ${
-                        turno.cruzaMedianoche
-                          ? "bg-indigo-50/70 border-indigo-200"
-                          : "bg-slate-50 border-slate-200 hover:border-slate-300"
-                      }`}
-                    >
-                      {/* Horario y Badges */}
-                      <div className="flex items-center justify-between gap-1 mb-1.5">
-                        <span className="font-mono font-bold text-slate-900 flex items-center gap-1 text-[11px] sm:text-xs">
-                          <Clock className="w-3 h-3 text-blue-600 no-print shrink-0" />
-                          {turno.horaInicio} - {turno.horaFin}
-                        </span>
+                  turnosDelDia.map((turno) => {
+                    const carnetAlerta = getCarnetAlerta(turno.empleado);
+                    const localColorClass =
+                      turno.local.codigo === "MARMAU"
+                        ? "bg-blue-50 text-blue-700 border-blue-200"
+                        : turno.local.codigo === "MODASHOP"
+                        ? "bg-pink-50 text-pink-700 border-pink-200"
+                        : turno.local.codigo === "PUNTO-1"
+                        ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                        : turno.local.codigo === "PUNTO-2"
+                        ? "bg-amber-50 text-amber-800 border-amber-200"
+                        : "bg-purple-50 text-purple-700 border-purple-200";
 
-                        <div className="flex items-center gap-1 shrink-0">
-                          {turno.tipo === "PUNTUAL" && turno.fecha && (
-                            <span
-                              className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 text-[10px] font-bold"
-                              title={`Fecha puntual: ${new Date(turno.fecha).toLocaleDateString("es-ES")}`}
-                            >
-                              <CalendarIcon className="w-2.5 h-2.5 no-print" />
-                              {new Date(turno.fecha).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit" })}
+                    return (
+                      <div
+                        key={turno.id}
+                        className={`p-2.5 rounded-xl border text-xs relative group transition-all shadow-2xs ${
+                          turno.cruzaMedianoche
+                            ? "bg-indigo-50/60 border-indigo-200"
+                            : "bg-white border-slate-200/90 hover:border-blue-300"
+                        }`}
+                      >
+                        {/* Nombre del empleado (DESTACADO Y BIEN LEGIBLE) */}
+                        <div className="mb-1.5 pr-10">
+                          <span className="text-sm font-extrabold text-slate-900 leading-snug block tracking-tight">
+                            {turno.empleado.nombre} {turno.empleado.apellido}
+                          </span>
+                          <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                            <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                              {turno.empleado.rol}
                             </span>
-                          )}
+                            {carnetAlerta}
+                          </div>
+                        </div>
 
-                          {turno.cruzaMedianoche && (
-                            <span
-                              className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-800 text-[10px] font-semibold"
-                              title="Turno nocturno: Cruza la medianoche"
-                            >
-                              <Moon className="w-2.5 h-2.5 no-print" /> Nocturno
-                            </span>
-                          )}
+                        {/* Local badge */}
+                        <div className="mb-2">
+                          <span
+                            className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md border ${localColorClass}`}
+                          >
+                            <Building2 className="w-3 h-3 shrink-0" />
+                            {turno.local.nombreLocal}
+                          </span>
+                        </div>
+
+                        {/* Horario y Duración */}
+                        <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-100 text-slate-700">
+                          <span className="font-mono font-bold flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-blue-600 shrink-0 no-print" />
+                            {turno.horaInicio} - {turno.horaFin}
+                          </span>
+                          <span className="font-extrabold text-slate-900 bg-slate-100 px-1.5 py-0.2 rounded">
+                            {turno.duracionHoras}h
+                          </span>
+                        </div>
+
+                        {turno.cruzaMedianoche && (
+                          <div className="mt-1 text-[10px] text-indigo-700 font-semibold flex items-center gap-1">
+                            <Moon className="w-2.5 h-2.5" /> Turno cruza medianoche (+1)
+                          </div>
+                        )}
+
+                        {/* Botones de acción */}
+                        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-80 sm:opacity-0 group-hover:opacity-100 transition no-print bg-white/90 rounded-lg p-0.5 border border-slate-200 shadow-xs">
+                          <button
+                            onClick={() => openModal(undefined, undefined, turno)}
+                            disabled={isPending}
+                            className="p-1 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded transition"
+                            title="Modificar turno"
+                          >
+                            <Edit2 className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => handleEliminarTurno(turno.id)}
+                            disabled={isPending}
+                            className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded transition"
+                            title="Eliminar turno"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
                         </div>
                       </div>
+                    );
+                  })
+                )}
 
-                      {/* Empleado info */}
-                      <div className="font-semibold text-slate-800 flex items-center gap-1 truncate">
-                        <User className="w-3 h-3 text-slate-400 shrink-0 no-print" />
-                        <span className="truncate">
-                          {turno.empleado.nombre} {turno.empleado.apellido}
-                        </span>
-                      </div>
-
-                      {/* Local info */}
-                      <div className="text-[11px] text-slate-500 flex items-center justify-between mt-1 pt-1 border-t border-slate-200/60">
-                        <span className="font-medium flex items-center gap-1 truncate text-emerald-700">
-                          <Building2 className="w-3 h-3 text-emerald-600 shrink-0 no-print" />
-                          {turno.local.nombreLocal}
-                        </span>
-                        <span className="font-bold text-slate-700 shrink-0">{turno.duracionHoras}h</span>
-                      </div>
-
-                      {/* Actions: Edit & Delete buttons */}
-                      <div className="absolute top-1.5 right-1.5 flex items-center gap-0.5 opacity-80 sm:opacity-0 group-hover:opacity-100 transition no-print bg-white/80 backdrop-blur-xs rounded-md p-0.5 shadow-xs border border-slate-200">
-                        <button
-                          onClick={() => openModal(undefined, turno)}
-                          disabled={isPending}
-                          className="p-1 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded transition"
-                          title="Modificar turno"
-                        >
-                          <Edit2 className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={() => handleEliminarTurno(turno.id)}
-                          disabled={isPending}
-                          className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-100/60 rounded transition"
-                          title="Eliminar turno"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
+                {/* Banner de colaboradores de vacaciones hoy */}
+                {empleadosDeVacacionesHoy.length > 0 && (
+                  <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] space-y-1 mt-2">
+                    <span className="font-bold flex items-center gap-1 text-emerald-800">
+                      <Palmtree className="w-3 h-3 text-emerald-600 shrink-0" />
+                      De Vacaciones:
+                    </span>
+                    {empleadosDeVacacionesHoy.map((e) => (
+                      <span key={e.id} className="block text-[10px] text-emerald-700 font-medium truncate">
+                        • {e.nombre} {e.apellido}
+                      </span>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
@@ -481,7 +743,7 @@ export function TurnosClient({
         })}
       </div>
 
-      {/* Modal Asignar Turno */}
+      {/* Modal Asignar / Editar Turno */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-3 sm:p-4 no-print overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
@@ -495,14 +757,11 @@ export function TurnosClient({
                 ) : (
                   <>
                     <CalendarDays className="w-5 h-5 text-blue-600" />
-                    Asignar Turno Horario
+                    Asignar Turno en la Grilla
                   </>
                 )}
               </h3>
-              <button
-                onClick={closeModal}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg"
-              >
+              <button onClick={closeModal} className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -515,35 +774,46 @@ export function TurnosClient({
                 </div>
               )}
 
-              {/* Selector Tipo de Turno */}
+              {/* Advertencia si el empleado está de vacaciones en esa fecha */}
+              {conflictoVacacionesModal && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-300 text-rose-800 text-xs flex items-start gap-2 font-medium">
+                  <Palmtree className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block font-bold">Colaborador No Disponible</strong>
+                    <span>{conflictoVacacionesModal}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Modalidad de Asignación */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Modalidad de Asignación *
+                  Modalidad de Turno *
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTipo("PUNTUAL")}
+                    className={`py-2 px-3 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition ${
+                      tipo === "PUNTUAL"
+                        ? "bg-blue-50 border-blue-600 text-blue-700 shadow-sm"
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <CalendarIcon className="w-3.5 h-3.5" />
+                    Fecha Puntual
+                  </button>
                   <button
                     type="button"
                     onClick={() => setTipo("RECURRENTE")}
-                    className={`py-2 px-3 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition ${
+                    className={`py-2 px-3 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition ${
                       tipo === "RECURRENTE"
                         ? "bg-blue-50 border-blue-600 text-blue-700 shadow-sm"
                         : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
                     <CalendarDays className="w-3.5 h-3.5" />
-                    Turno Semanal Recurrente
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTipo("PUNTUAL")}
-                    className={`py-2 px-3 rounded-lg text-xs font-semibold border flex items-center justify-center gap-1.5 transition ${
-                      tipo === "PUNTUAL"
-                        ? "bg-blue-50 border-blue-600 text-blue-700 shadow-sm"
-                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                    }`}
-                  >
-                    <Clock className="w-3.5 h-3.5" />
-                    Fecha Puntual Específica
+                    Semanal Recurrente
                   </button>
                 </div>
               </div>
@@ -558,7 +828,7 @@ export function TurnosClient({
                     value={empleadoId}
                     onChange={(e) => setEmpleadoId(e.target.value)}
                     required
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
                   >
                     {empleados.map((emp) => (
                       <option key={emp.id} value={emp.id}>
@@ -576,7 +846,7 @@ export function TurnosClient({
                     value={localId}
                     onChange={(e) => setLocalId(e.target.value)}
                     required
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
                   >
                     {locales.map((loc) => (
                       <option key={loc.id} value={loc.id}>
@@ -587,70 +857,40 @@ export function TurnosClient({
                 </div>
               </div>
 
-              {/* Día o Fecha */}
-              {tipo === "RECURRENTE" ? (
+              {/* Fecha o Día de la semana */}
+              {tipo === "PUNTUAL" ? (
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Día de la Semana (Lunes a Domingo) *
-                  </label>
-                  <select
-                    value={diaSemana}
-                    onChange={(e) => setDiaSemana(Number(e.target.value))}
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    {DIAS_SEMANA.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Fecha del Calendario *
+                    Fecha del Turno *
                   </label>
                   <input
                     type="date"
                     required
                     value={fecha}
                     onChange={(e) => setFecha(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Día de la Semana *
+                  </label>
+                  <select
+                    value={diaSemana}
+                    onChange={(e) => setDiaSemana(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+                  >
+                    {diasSemana.map((d) => (
+                      <option key={d.diaId} value={d.diaId}>
+                        {d.nombre}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
 
-              {/* Presets Rápidos */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Plantillas Rápidas de Horario:
-                </label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => aplicarPreset("08:00", "16:00")}
-                    className="px-2 py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-[11px] font-medium text-slate-700 truncate"
-                  >
-                    Mañana 08-16
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => aplicarPreset("16:00", "00:00")}
-                    className="px-2 py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-[11px] font-medium text-slate-700 truncate"
-                  >
-                    Tarde 16-00
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => aplicarPreset("22:00", "06:00")}
-                    className="px-2 py-1.5 rounded bg-indigo-50 hover:bg-indigo-100 text-[11px] font-medium text-indigo-700 border border-indigo-200 truncate"
-                  >
-                    Noche 22-06
-                  </button>
-                </div>
-              </div>
-
-              {/* Rango de Horas */}
+              {/* Horarios */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -661,7 +901,7 @@ export function TurnosClient({
                     required
                     value={horaInicio}
                     onChange={(e) => setHoraInicio(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono"
                   />
                 </div>
 
@@ -674,59 +914,53 @@ export function TurnosClient({
                     required
                     value={horaFin}
                     onChange={(e) => setHoraFin(e.target.value)}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-mono"
                   />
                 </div>
               </div>
 
-              {/* Resumen de cálculo en vivo */}
-              <div className="p-3 rounded-lg bg-blue-50/70 border border-blue-200/80 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-blue-600" />
-                  <span className="text-slate-700">Duración:</span>
-                  <span className="font-bold text-blue-900 text-sm">
-                    {calculoEnVivo.duracionHoras} hrs
-                  </span>
+              {/* Resumen de duración */}
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                <div>
+                  <span className="text-slate-500">Duración estimada:</span>
+                  <span className="font-bold text-slate-900 ml-1.5">{calculoEnVivo.duracionHoras} hrs</span>
                 </div>
-
                 {calculoEnVivo.cruzaMedianoche && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[11px] font-bold">
-                    <Moon className="w-3 h-3" /> Cruza medianoche (+1)
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200">
+                    <Moon className="w-3 h-3 text-indigo-600" />
+                    Cruza medianoche (+1 día)
                   </span>
                 )}
               </div>
 
+              {/* Notas */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Notas / Observaciones
+                  Notas u Observaciones (Opcional)
                 </label>
                 <input
                   type="text"
-                  placeholder="Ej: Turno rotativo fin de semana"
+                  placeholder="Ej: Turno rotativo de fin de semana"
                   value={notas}
                   onChange={(e) => setNotas(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100 shrink-0">
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-4 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition"
+                  className="px-4 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100 transition"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  disabled={isPending}
-                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 shadow-sm"
+                  disabled={isPending || Boolean(conflictoVacacionesModal)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 shadow-sm"
                 >
-                  {isPending
-                    ? "Validando..."
-                    : editingTurnoId
-                    ? "Guardar Modificaciones"
-                    : "Confirmar Turno"}
+                  {isPending ? "Guardando..." : "Confirmar Turno"}
                 </button>
               </div>
             </form>

@@ -1,13 +1,181 @@
 import ExcelJS from "exceljs";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { ResumenMensualEmpleado } from "./reports";
+import { ResumenMensualEmpleado, ReporteLiquidacionGeneral } from "./reports";
 import { MESES } from "./utils";
 
 export interface EmpleadoInfoExport {
   nombreCompleto: string;
   dni: string;
   rol: string;
+}
+
+export async function exportarLiquidacionExcel(reporte: ReporteLiquidacionGeneral): Promise<Blob> {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Sistema de Control de Personal - Puntos y Moda";
+  workbook.created = new Date();
+
+  // HOJA 1: RESUMEN DE LIQUIDACIÓN
+  const ws = workbook.addWorksheet("Liquidación de Horas");
+
+  // Título
+  ws.mergeCells("A1:G1");
+  const titleCell = ws.getCell("A1");
+  titleCell.value = `REPORTE (LIQUIDACION DE HORAS) - DEL ${reporte.fechaDesde} AL ${reporte.fechaHasta}`;
+  titleCell.font = { name: "Arial", size: 14, bold: true, color: { argb: "FFFFFFFF" } };
+  titleCell.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF1E3A8A" },
+  };
+  titleCell.alignment = { vertical: "middle", horizontal: "center" };
+  ws.getRow(1).height = 32;
+
+  // Totales
+  ws.addRow([]);
+  ws.addRow(["Período Liquidado:", `${reporte.fechaDesde} al ${reporte.fechaHasta}`, "", "Total Hs Trabajadas:", `${reporte.totalHorasTrabajadasEmpresa} hrs`]);
+  ws.addRow(["Total Colaboradores:", reporte.empleados.length, "", "Total Hs Vacaciones Liquidadas:", `${reporte.totalHorasVacacionesEmpresa} hrs`]);
+  ws.addRow(["", "", "", "TOTAL GENERAL A LIQUIDAR:", `${reporte.totalGeneralHorasLiquidar} hrs`]);
+  ws.addRow([]);
+
+  [3, 4, 5].forEach((rowNum) => {
+    const row = ws.getRow(rowNum);
+    row.getCell(1).font = { bold: true };
+    row.getCell(4).font = { bold: true };
+  });
+
+  // Cabecera tabla
+  const headerRow = ws.addRow([
+    "Colaborador",
+    "DNI / Identificación",
+    "Rol / Cargo",
+    "Horas Trabajadas",
+    "Días Vacaciones Liquidados",
+    "Horas Vacaciones Liquidadas",
+    "TOTAL HORAS A LIQUIDAR",
+  ]);
+
+  headerRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2563EB" } };
+    cell.alignment = { horizontal: "center" };
+  });
+
+  reporte.empleados.forEach((emp) => {
+    ws.addRow([
+      emp.nombreCompleto,
+      emp.dni,
+      emp.rol,
+      emp.horasTrabajadas,
+      emp.diasVacacionesLiquidados,
+      emp.horasVacacionesLiquidadas,
+      emp.totalHorasALiquidar,
+    ]);
+  });
+
+  // Fila Total
+  const totalRow = ws.addRow([
+    "TOTAL GENERAL EMPRESA",
+    "-",
+    "-",
+    reporte.totalHorasTrabajadasEmpresa,
+    reporte.empleados.reduce((a, b) => a + b.diasVacacionesLiquidados, 0),
+    reporte.totalHorasVacacionesEmpresa,
+    reporte.totalGeneralHorasLiquidar,
+  ]);
+  totalRow.eachCell((cell) => {
+    cell.font = { bold: true };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF1F5F9" } };
+  });
+
+  ws.columns = [
+    { width: 28 },
+    { width: 20 },
+    { width: 16 },
+    { width: 18 },
+    { width: 26 },
+    { width: 28 },
+    { width: 26 },
+  ];
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+}
+
+export function exportarLiquidacionPDF(reporte: ReporteLiquidacionGeneral) {
+  const doc = new jsPDF();
+
+  // Encabezado
+  doc.setFillColor(30, 58, 138); // Dark Navy
+  doc.rect(0, 0, 210, 24, "F");
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("REPORTE (LIQUIDACION DE HORAS)", 14, 15);
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Período: ${reporte.fechaDesde} al ${reporte.fechaHasta}`, 145, 15);
+
+  // Resumen
+  doc.setTextColor(30, 41, 59);
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Total Horas Trabajadas: ${reporte.totalHorasTrabajadasEmpresa} hrs`, 14, 32);
+  doc.text(`Total Hs Vacaciones Liquidadas: ${reporte.totalHorasVacacionesEmpresa} hrs`, 80, 32);
+  doc.setTextColor(37, 99, 235);
+  doc.text(`TOTAL GENERAL A LIQUIDAR: ${reporte.totalGeneralHorasLiquidar} hrs`, 14, 38);
+
+  autoTable(doc, {
+    startY: 44,
+    head: [[
+      "Colaborador",
+      "DNI",
+      "Rol",
+      "Hs Trabajadas",
+      "Días Vac. Liq.",
+      "Hs Vac. Liq.",
+      "Total Horas Liq."
+    ]],
+    body: [
+      ...reporte.empleados.map((e) => [
+        e.nombreCompleto,
+        e.dni,
+        e.rol,
+        `${e.horasTrabajadas}h`,
+        e.diasVacacionesLiquidados > 0 ? `${e.diasVacacionesLiquidados}d` : "-",
+        e.horasVacacionesLiquidadas > 0 ? `${e.horasVacacionesLiquidadas}h` : "-",
+        `${e.totalHorasALiquidar}h`,
+      ]),
+      [
+        "TOTAL GENERAL",
+        "-",
+        "-",
+        `${reporte.totalHorasTrabajadasEmpresa}h`,
+        `${reporte.empleados.reduce((a, b) => a + b.diasVacacionesLiquidados, 0)}d`,
+        `${reporte.totalHorasVacacionesEmpresa}h`,
+        `${reporte.totalGeneralHorasLiquidar}h`,
+      ],
+    ],
+    theme: "striped",
+    headStyles: { fillColor: [37, 99, 235] },
+    styles: { fontSize: 8 },
+    columnStyles: {
+      0: { cellWidth: 42 },
+      1: { cellWidth: 24 },
+      2: { cellWidth: 22 },
+      3: { halign: "right", cellWidth: 26 },
+      4: { halign: "center", cellWidth: 24 },
+      5: { halign: "right", cellWidth: 24 },
+      6: { halign: "right", cellWidth: 26, fontStyle: "bold" },
+    },
+  });
+
+  const fileName = `Liquidacion_Horas_${reporte.fechaDesde}_al_${reporte.fechaHasta}.pdf`;
+  doc.save(fileName);
 }
 
 export async function exportarReporteExcel(

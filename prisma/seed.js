@@ -118,20 +118,22 @@ const FECHAS_NOVIEMBRE = [
 async function main() {
   console.log("=== INICIANDO SEED MAESTRO DE PRODUCCIÓN ===");
 
-  // 1. Crear / Asegurar Superusuario y Supervisor
-  console.log("1. Configurando credenciales de acceso (Superusuario y Supervisor)...");
+  // 1. Crear / Asegurar Superusuario y Supervisores solicitados
+  console.log("1. Configurando credenciales de acceso (Superusuario y Supervisores)...");
   const superPassword = await bcrypt.hash("Admin2026!", 10);
-  const supervisorPassword = await bcrypt.hash("Supervisor2026!", 10);
+  const puntosPassword = await bcrypt.hash("Puntos2026!", 10);
 
   const superuser = await prisma.usuario.upsert({
     where: { email: "admin@turnomaster.com" },
     update: {
+      username: "admin",
       password: superPassword,
       rol: "SUPERUSUARIO",
       activo: true,
     },
     create: {
       nombre: "Administrador Principal",
+      username: "admin",
       email: "admin@turnomaster.com",
       password: superPassword,
       rol: "SUPERUSUARIO",
@@ -139,24 +141,33 @@ async function main() {
     },
   });
 
-  const supervisor = await prisma.usuario.upsert({
-    where: { email: "supervisor@turnomaster.com" },
-    update: {
-      password: supervisorPassword,
-      rol: "SUPERVISOR",
-      activo: true,
-    },
-    create: {
-      nombre: "Supervisor General",
-      email: "supervisor@turnomaster.com",
-      password: supervisorPassword,
-      rol: "SUPERVISOR",
-      activo: true,
-    },
-  });
+  const supervisoresData = [
+    { nombre: "Andrea", username: "andrea", email: "andrea@turnomaster.com" },
+    { nombre: "Mauricio", username: "mauricio", email: "mauricio@turnomaster.com" },
+    { nombre: "Demian", username: "demian", email: "demian@turnomaster.com" },
+  ];
 
-  console.log(`✓ Superusuario: ${superuser.email}`);
-  console.log(`✓ Supervisor: ${supervisor.email}`);
+  for (const s of supervisoresData) {
+    await prisma.usuario.upsert({
+      where: { email: s.email },
+      update: {
+        nombre: s.nombre,
+        username: s.username,
+        password: puntosPassword,
+        rol: "SUPERVISOR",
+        activo: true,
+      },
+      create: {
+        nombre: s.nombre,
+        username: s.username,
+        email: s.email,
+        password: puntosPassword,
+        rol: "SUPERVISOR",
+        activo: true,
+      },
+    });
+    console.log(`✓ Supervisor listo: ${s.nombre} (Usuario: ${s.username} / Password: Puntos2026!)`);
+  }
 
   // 2. Limpiar turnos, registros, vacaciones y empleados anteriores
   console.log("2. Limpiando datos operativos previos...");
@@ -206,6 +217,22 @@ async function main() {
     const correo = `${nombre.toLowerCase()}.${apellido.toLowerCase()}@turnomaster.com`;
     const diasVacacionesTotales = i % 5 === 0 ? 21 : i % 8 === 0 ? 28 : 14;
 
+    // Carnet de manipulación de alimentos
+    const tieneCarnetManipulacion = i % 2 === 0;
+    let vencimientoCarnetManipulacion = null;
+    if (tieneCarnetManipulacion) {
+      if (i % 6 === 0) {
+        // Vencido hace 5 días (alerta roja)
+        vencimientoCarnetManipulacion = new Date("2026-11-06T00:00:00Z");
+      } else if (i % 4 === 0) {
+        // Por vencer en 15 días (alerta amarilla < 30 días)
+        vencimientoCarnetManipulacion = new Date("2026-11-26T00:00:00Z");
+      } else {
+        // Vigente (verde)
+        vencimientoCarnetManipulacion = new Date("2027-05-15T00:00:00Z");
+      }
+    }
+
     const emp = await prisma.empleado.create({
       data: {
         nombre,
@@ -217,6 +244,8 @@ async function main() {
         rol,
         activo: true,
         diasVacacionesTotales,
+        tieneCarnetManipulacion,
+        vencimientoCarnetManipulacion,
       },
     });
 
@@ -258,6 +287,7 @@ async function main() {
     await prisma.vacacion.create({
       data: {
         empleadoId: emp.id,
+        tipo: "GOZADA",
         fechaInicio: s,
         fechaFin: e,
         diasTomados: dias,
@@ -265,7 +295,20 @@ async function main() {
       },
     });
   }
-  console.log(`✓ Vacaciones de muestra registradas.`);
+
+  // Agregar 1 ejemplo de vacaciones liquidadas (compensación de horas)
+  await prisma.vacacion.create({
+    data: {
+      empleadoId: empleadosCreados[0].id,
+      tipo: "LIQUIDADA",
+      fechaInicio: new Date("2026-11-05T12:00:00Z"),
+      fechaFin: new Date("2026-11-05T12:00:00Z"),
+      diasTomados: 5,
+      horasLiquidadas: 40,
+      observaciones: "Liquidación de 5 días de vacaciones no gozadas (40 hs equivalentes)",
+    },
+  });
+  console.log(`✓ Vacaciones de muestra (gozadas y liquidadas) registradas.`);
 
   // 6. Asignar turnos de trabajo desde el 1/11 hasta el 11/11
   console.log("6. Generando turnos de trabajo entre 01/11/2026 y 11/11/2026...");

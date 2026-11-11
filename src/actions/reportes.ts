@@ -1,7 +1,91 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { consolidarHorasMensuales, ResumenMensualEmpleado, TurnoInput } from "@/lib/reports";
+import {
+  consolidarHorasMensuales,
+  consolidarLiquidacionHorasRango,
+  ResumenMensualEmpleado,
+  ReporteLiquidacionGeneral,
+  TurnoInput,
+} from "@/lib/reports";
+
+export async function getReporteLiquidacionHoras(
+  fechaDesdeStr: string,
+  fechaHastaStr: string,
+  empleadoId?: string
+): Promise<{ success: boolean; data?: ReporteLiquidacionGeneral; error?: string }> {
+  try {
+    if (!fechaDesdeStr || !fechaHastaStr) {
+      return { success: false, error: "Debes seleccionar las fechas Desde y Hasta." };
+    }
+
+    const whereEmp: any = { activo: true };
+    if (empleadoId && empleadoId !== "ALL") {
+      whereEmp.id = empleadoId;
+    }
+
+    const [empleadosDb, turnosDb, vacacionesDb] = await Promise.all([
+      prisma.empleado.findMany({
+        where: whereEmp,
+        orderBy: [{ apellido: "asc" }, { nombre: "asc" }],
+        select: {
+          id: true,
+          nombre: true,
+          apellido: true,
+          dni: true,
+          rol: true,
+        },
+      }),
+      prisma.asignacionTurno.findMany({
+        where: {
+          activo: true,
+          ...(empleadoId && empleadoId !== "ALL" ? { empleadoId } : {}),
+        },
+        include: {
+          local: true,
+        },
+      }),
+      prisma.vacacion.findMany({
+        where: {
+          tipo: "LIQUIDADA",
+          ...(empleadoId && empleadoId !== "ALL" ? { empleadoId } : {}),
+        },
+      }),
+    ]);
+
+    const turnosInput: TurnoInput[] = turnosDb.map((t) => ({
+      id: t.id,
+      empleadoId: t.empleadoId,
+      localId: t.localId,
+      local: {
+        id: t.local.id,
+        nombreLocal: t.local.nombreLocal,
+        codigo: t.local.codigo,
+      },
+      tipo: t.tipo as "RECURRENTE" | "PUNTUAL",
+      diaSemana: t.diaSemana,
+      fecha: t.fecha,
+      horaInicio: t.horaInicio,
+      horaFin: t.horaFin,
+      cruzaMedianoche: t.cruzaMedianoche,
+      duracionHoras: t.duracionHoras,
+      activo: t.activo,
+    }));
+
+    const reporte = consolidarLiquidacionHorasRango(
+      fechaDesdeStr,
+      fechaHastaStr,
+      empleadosDb,
+      turnosInput,
+      vacacionesDb
+    );
+
+    return { success: true, data: reporte };
+  } catch (error: any) {
+    console.error("Error al generar reporte de liquidación de horas:", error);
+    return { success: false, error: "Error al calcular la liquidación de horas." };
+  }
+}
 
 export async function getReporteMensualEmpleado(
   empleadoId: string,
