@@ -11,4 +11,4 @@
 | TASK-030 | Liquidación de vacaciones no gozadas (horas de compensación) | `COMPLETADO` | Full Stack | Modal y cálculo en `/vacaciones` |
 | TASK-031 | Rediseño a "Reporte (liquidacion de horas)" con rango de fechas y desglose | `COMPLETADO` | Full Stack | Selector Desde/Hasta + PDF/Excel |
 | TASK-032 | Calendario Semanal Lunes a Domingo (semanas 1 a 52) con nombres claros | `COMPLETADO` | Frontend Lead | Navegación anual semanal |
-| TASK-033 | Despliegue en Producción VPS DonWeb (`puntosymoda.site`) y verificación | `EN PROGRESO` | DevOps | Git pull, push DB, build, reinicio |
+| TASK-033 | Despliegue en Producción VPS DonWeb (`puntosymoda.site`) y verificación | `COMPLETADO` | DevOps | Git pull, push DB, build, reinicio |

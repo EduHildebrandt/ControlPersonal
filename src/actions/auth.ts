@@ -188,3 +188,32 @@ export async function alternarEstadoSupervisor(id: string, activoActual: boolean
   revalidatePath("/usuarios");
   return { success: true };
 }
+
+export async function cambiarPasswordUsuario(id: string, nuevaPassword: string) {
+  await requireSuperusuario();
+
+  if (!id || !nuevaPassword || nuevaPassword.trim().length < 6) {
+    return {
+      success: false,
+      error: "La nueva contraseña debe tener al menos 6 caracteres.",
+    };
+  }
+
+  const target = await prisma.usuario.findUnique({
+    where: { id },
+  });
+
+  if (!target) {
+    return { success: false, error: "Usuario no encontrado." };
+  }
+
+  const hashedPassword = await bcrypt.hash(nuevaPassword.trim(), 10);
+
+  await prisma.usuario.update({
+    where: { id },
+    data: { password: hashedPassword },
+  });
+
+  revalidatePath("/usuarios");
+  return { success: true };
+}

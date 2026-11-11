@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { UserCog, Plus, Trash2, CheckCircle2, XCircle, Shield, X, Mail, Lock, User, AlertTriangle } from "lucide-react";
-import { crearSupervisor, eliminarSupervisor, alternarEstadoSupervisor } from "@/actions/auth";
+import { UserCog, Plus, Trash2, CheckCircle2, XCircle, Shield, X, Mail, Lock, User, AlertTriangle, KeyRound, Eye, EyeOff } from "lucide-react";
+import { crearSupervisor, eliminarSupervisor, alternarEstadoSupervisor, cambiarPasswordUsuario } from "@/actions/auth";
 
 interface UsuarioItem {
   id: string;
@@ -28,6 +28,15 @@ export function UsuariosClient({ initialUsuarios }: { initialUsuarios: UsuarioIt
     open: boolean;
     usuario: UsuarioItem | null;
   }>({ open: false, usuario: null });
+
+  const [passwordModal, setPasswordModal] = useState<{
+    open: boolean;
+    usuario: UsuarioItem | null;
+  }>({ open: false, usuario: null });
+  const [newPassword, setNewPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [pwdErrorMsg, setPwdErrorMsg] = useState<string | null>(null);
+  const [pwdSuccessMsg, setPwdSuccessMsg] = useState<string | null>(null);
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +77,35 @@ export function UsuariosClient({ initialUsuarios }: { initialUsuarios: UsuarioIt
         window.location.reload();
       } else {
         alert(res.error || "Error al cambiar estado.");
+      }
+    });
+  };
+
+  const openChangePasswordModal = (user: UsuarioItem) => {
+    setNewPassword("");
+    setShowNewPassword(false);
+    setPwdErrorMsg(null);
+    setPwdSuccessMsg(null);
+    setPasswordModal({ open: true, usuario: user });
+  };
+
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordModal.usuario) return;
+    setPwdErrorMsg(null);
+    setPwdSuccessMsg(null);
+
+    startTransition(async () => {
+      const res = await cambiarPasswordUsuario(passwordModal.usuario!.id, newPassword);
+      if (!res.success) {
+        setPwdErrorMsg(res.error || "Error al actualizar la contraseña.");
+      } else {
+        setPwdSuccessMsg("¡Contraseña actualizada correctamente!");
+        setTimeout(() => {
+          setPasswordModal({ open: false, usuario: null });
+          setNewPassword("");
+          setPwdSuccessMsg(null);
+        }, 900);
       }
     });
   };
@@ -151,30 +189,42 @@ export function UsuariosClient({ initialUsuarios }: { initialUsuarios: UsuarioIt
                   )}
                 </span>
 
-                {!isSuper && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleToggle(u)}
-                      disabled={isPending}
-                      className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg transition ${
-                        u.activo
-                          ? "text-amber-700 hover:bg-amber-50 border border-amber-200"
-                          : "text-emerald-700 hover:bg-emerald-50 border border-emerald-200"
-                      }`}
-                    >
-                      {u.activo ? "Desactivar" : "Activar"}
-                    </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => openChangePasswordModal(u)}
+                    disabled={isPending}
+                    className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-blue-700 hover:bg-blue-50 border border-blue-200 transition"
+                    title="Cambiar contraseña"
+                  >
+                    <KeyRound className="w-3.5 h-3.5" />
+                    <span>Cambiar Clave</span>
+                  </button>
 
-                    <button
-                      onClick={() => setConfirmModal({ open: true, usuario: u })}
-                      disabled={isPending}
-                      className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                      title="Eliminar supervisor"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
+                  {!isSuper && (
+                    <>
+                      <button
+                        onClick={() => handleToggle(u)}
+                        disabled={isPending}
+                        className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg transition ${
+                          u.activo
+                            ? "text-amber-700 hover:bg-amber-50 border border-amber-200"
+                            : "text-emerald-700 hover:bg-emerald-50 border border-emerald-200"
+                        }`}
+                      >
+                        {u.activo ? "Desactivar" : "Activar"}
+                      </button>
+
+                      <button
+                        onClick={() => setConfirmModal({ open: true, usuario: u })}
+                        disabled={isPending}
+                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                        title="Eliminar supervisor"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -255,32 +305,42 @@ export function UsuariosClient({ initialUsuarios }: { initialUsuarios: UsuarioIt
                     </td>
 
                     <td className="px-6 py-4 text-right">
-                      {isSuper ? (
-                        <span className="text-xs text-slate-400 italic">No modificable</span>
-                      ) : (
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleToggle(u)}
-                            disabled={isPending}
-                            className={`text-xs font-medium px-2.5 py-1 rounded transition ${
-                              u.activo
-                                ? "text-amber-700 hover:bg-amber-50 border border-amber-200"
-                                : "text-emerald-700 hover:bg-emerald-50 border border-emerald-200"
-                            }`}
-                          >
-                            {u.activo ? "Desactivar" : "Activar"}
-                          </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => openChangePasswordModal(u)}
+                          disabled={isPending}
+                          className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded text-blue-700 hover:bg-blue-50 border border-blue-200 transition"
+                          title="Modificar contraseña de este usuario"
+                        >
+                          <KeyRound className="w-3.5 h-3.5" />
+                          <span>Cambiar Contraseña</span>
+                        </button>
 
-                          <button
-                            onClick={() => setConfirmModal({ open: true, usuario: u })}
-                            disabled={isPending}
-                            className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition"
-                            title="Eliminar supervisor"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
+                        {!isSuper && (
+                          <>
+                            <button
+                              onClick={() => handleToggle(u)}
+                              disabled={isPending}
+                              className={`text-xs font-medium px-2.5 py-1 rounded transition ${
+                                u.activo
+                                  ? "text-amber-700 hover:bg-amber-50 border border-amber-200"
+                                  : "text-emerald-700 hover:bg-emerald-50 border border-emerald-200"
+                              }`}
+                            >
+                              {u.activo ? "Desactivar" : "Activar"}
+                            </button>
+
+                            <button
+                              onClick={() => setConfirmModal({ open: true, usuario: u })}
+                              disabled={isPending}
+                              className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                              title="Eliminar supervisor"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -349,16 +409,15 @@ export function UsuariosClient({ initialUsuarios }: { initialUsuarios: UsuarioIt
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Correo Electrónico *
+                  Correo Electrónico (opcional)
                 </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
                   <input
                     type="email"
-                    required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="supervisor@empresa.com"
+                    placeholder="Opcional (se autogenera si se deja vacío)"
                     className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
@@ -400,6 +459,93 @@ export function UsuariosClient({ initialUsuarios }: { initialUsuarios: UsuarioIt
                   className="px-4 py-2 rounded-lg text-xs font-semibold bg-amber-600 text-white hover:bg-amber-700 transition disabled:opacity-50"
                 >
                   {isPending ? "Guardando..." : "Crear Supervisor"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Cambiar Contraseña */}
+      {passwordModal.open && passwordModal.usuario && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+              <h3 className="font-bold text-slate-900 text-base flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-blue-600" />
+                Modificar Contraseña
+              </h3>
+              <button
+                onClick={() => setPasswordModal({ open: false, usuario: null })}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleChangePassword} className="p-6 space-y-4 overflow-y-auto flex-1">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700">
+                Estás modificando la contraseña de acceso para{" "}
+                <strong className="text-slate-900">{passwordModal.usuario.nombre}</strong>{" "}
+                {passwordModal.usuario.username && (
+                  <span className="font-mono text-blue-600">(@{passwordModal.usuario.username})</span>
+                )}
+              </div>
+
+              {pwdErrorMsg && (
+                <div className="p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+                  {pwdErrorMsg}
+                </div>
+              )}
+
+              {pwdSuccessMsg && (
+                <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  {pwdSuccessMsg}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Nueva Contraseña (mínimo 6 caracteres) *
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    required
+                    minLength={6}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Ingresa la nueva contraseña"
+                    className="w-full pl-9 pr-10 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword((v) => !v)}
+                    className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 p-0.5"
+                    title={showNewPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                  >
+                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setPasswordModal({ open: false, usuario: null })}
+                  className="px-4 py-2 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50"
+                >
+                  {isPending ? "Actualizando..." : "Guardar Nueva Contraseña"}
                 </button>
               </div>
             </form>
