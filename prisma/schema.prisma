@@ -9,21 +9,23 @@ datasource db {
 }
 
 model Empleado {
-  id        String   @id @default(cuid())
-  nombre    String
-  apellido  String
-  dni       String   @unique
-  telefono  String?
-  direccion String?
-  correo    String?
-  rol       String   @default("Vendedor")
-  activo    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  nombre                String
+  apellido              String
+  dni                   String   @unique
+  telefono              String?
+  direccion             String?
+  correo                String?
+  rol                   String   @default("Vendedor")
+  activo                Boolean  @default(true)
+  diasVacacionesTotales Int      @default(14) @map("dias_vacaciones_totales")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   locales       EmpleadoLocal[]
   turnos        AsignacionTurno[]
   registroHoras RegistroHoras[]
+  vacaciones    Vacacion[]
 
   @@map("empleados")
 }
@@ -120,4 +122,20 @@ model Usuario {
   updatedAt DateTime   @updatedAt
 
   @@map("usuarios")
+}
+
+model Vacacion {
+  id            String   @id @default(cuid())
+  empleadoId    String   @map("empleado_id")
+  fechaInicio   DateTime @map("fecha_inicio")
+  fechaFin      DateTime @map("fecha_fin")
+  diasTomados   Int      @map("dias_tomados")
+  observaciones String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  empleado      Empleado @relation(fields: [empleadoId], references: [id], onDelete: Cascade)
+
+  @@index([empleadoId])
+  @@map("vacaciones")
 }

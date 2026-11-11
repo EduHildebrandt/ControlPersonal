@@ -14,6 +14,14 @@ export async function getEmpleados() {
             local: true,
           },
         },
+        vacaciones: {
+          select: {
+            id: true,
+            diasTomados: true,
+            fechaInicio: true,
+            fechaFin: true,
+          },
+        },
         _count: {
           select: {
             turnos: { where: { activo: true } },
@@ -63,6 +71,7 @@ export async function guardarEmpleado(formData: {
   correo?: string;
   rol: string;
   activo?: boolean;
+  diasVacacionesTotales?: number;
   localesIds?: string[]; // IDs de locales habilitados
 }) {
   try {
@@ -76,6 +85,7 @@ export async function guardarEmpleado(formData: {
       correo,
       rol,
       activo = true,
+      diasVacacionesTotales = 14,
       localesIds = [],
     } = formData;
 
@@ -108,6 +118,7 @@ export async function guardarEmpleado(formData: {
             correo: correo?.trim() || null,
             rol: rol.trim() || "Vendedor",
             activo,
+            diasVacacionesTotales: Math.max(0, Number(diasVacacionesTotales) || 14),
           },
         });
 
@@ -129,6 +140,7 @@ export async function guardarEmpleado(formData: {
 
       revalidatePath("/empleados");
       revalidatePath("/turnos");
+      revalidatePath("/vacaciones");
       revalidatePath("/reportes");
       return { success: true };
     } else {
@@ -150,6 +162,7 @@ export async function guardarEmpleado(formData: {
           correo: correo?.trim() || null,
           rol: rol.trim() || "Vendedor",
           activo,
+          diasVacacionesTotales: Math.max(0, Number(diasVacacionesTotales) || 14),
           locales: {
             create: localesIds.map((localId) => ({
               localId,
@@ -160,6 +173,7 @@ export async function guardarEmpleado(formData: {
 
       revalidatePath("/empleados");
       revalidatePath("/turnos");
+      revalidatePath("/vacaciones");
       return { success: true, data: empleado };
     }
   } catch (error: any) {

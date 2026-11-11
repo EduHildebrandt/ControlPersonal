@@ -18,6 +18,7 @@ import {
   RotateCcw,
   Mail,
   MapPin,
+  Palmtree,
 } from "lucide-react";
 import {
   guardarEmpleado,
@@ -43,6 +44,13 @@ interface EmpleadoItem {
   correo?: string | null;
   rol: string;
   activo: boolean;
+  diasVacacionesTotales?: number;
+  vacaciones?: Array<{
+    id: string;
+    diasTomados: number;
+    fechaInicio: any;
+    fechaFin: any;
+  }>;
   locales: Array<{
     local: LocalOption;
   }>;
@@ -86,6 +94,7 @@ export function EmpleadosClient({
   const [direccion, setDireccion] = useState("");
   const [correo, setCorreo] = useState("");
   const [rol, setRol] = useState("Vendedor");
+  const [diasVacacionesTotales, setDiasVacacionesTotales] = useState(14);
   const [activo, setActivo] = useState(true);
   const [selectedLocales, setSelectedLocales] = useState<string[]>([]);
 
@@ -100,6 +109,7 @@ export function EmpleadosClient({
       setDireccion(emp.direccion || "");
       setCorreo(emp.correo || "");
       setRol(emp.rol === "Limpieza" ? "Limpieza" : "Vendedor");
+      setDiasVacacionesTotales(emp.diasVacacionesTotales ?? 14);
       setActivo(emp.activo);
       setSelectedLocales(emp.locales.map((l) => l.local.id));
     } else {
@@ -111,6 +121,7 @@ export function EmpleadosClient({
       setDireccion("");
       setCorreo("");
       setRol("Vendedor");
+      setDiasVacacionesTotales(14);
       setActivo(true);
       setSelectedLocales(localesDisponibles.length > 0 ? [localesDisponibles[0].id] : []);
     }
@@ -143,6 +154,7 @@ export function EmpleadosClient({
         direccion,
         correo,
         rol,
+        diasVacacionesTotales: Number(diasVacacionesTotales) || 14,
         activo,
         localesIds: selectedLocales,
       });
@@ -324,6 +336,17 @@ export function EmpleadosClient({
                       <span className="truncate">{emp.direccion}</span>
                     </div>
                   )}
+
+                  {/* Vacaciones Balance */}
+                  <div className="flex items-center justify-between text-[11px] bg-emerald-50/70 p-2 rounded-lg border border-emerald-100 text-emerald-900 font-medium">
+                    <span className="flex items-center gap-1 font-semibold text-emerald-800">
+                      <Palmtree className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      Vacaciones
+                    </span>
+                    <span>
+                      {emp.vacaciones?.reduce((a, b) => a + b.diasTomados, 0) || 0} tomados / {emp.diasVacacionesTotales ?? 14} días
+                    </span>
+                  </div>
                 </div>
 
                 {/* Locales habilitados */}
@@ -423,6 +446,7 @@ export function EmpleadosClient({
                     <th className="px-6 py-3.5 font-semibold">Rol / Cargo</th>
                     <th className="px-6 py-3.5 font-semibold">Locales Habilitados</th>
                     <th className="px-6 py-3.5 font-semibold text-center">Turnos</th>
+                    <th className="px-6 py-3.5 font-semibold text-center">Vacaciones</th>
                     <th className="px-6 py-3.5 font-semibold text-center">Estado</th>
                     <th className="px-6 py-3.5 font-semibold text-right">Acciones</th>
                   </tr>
@@ -497,6 +521,25 @@ export function EmpleadosClient({
                           <Calendar className="w-3 h-3" />
                           {emp._count.turnos}
                         </span>
+                      </td>
+
+                      <td className="px-6 py-4 text-center">
+                        {(() => {
+                          const tomados = emp.vacaciones?.reduce((a, b) => a + b.diasTomados, 0) || 0;
+                          const totales = emp.diasVacacionesTotales ?? 14;
+                          const restantes = Math.max(0, totales - tomados);
+                          return (
+                            <div className="inline-flex flex-col items-center">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                <Palmtree className="w-3 h-3 text-emerald-600" />
+                                {restantes} d disp.
+                              </span>
+                              <span className="text-[10px] text-slate-400 mt-0.5">
+                                {tomados} de {totales} días
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       <td className="px-6 py-4 text-center">
@@ -783,16 +826,33 @@ export function EmpleadosClient({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Rol / Cargo *</label>
-                <select
-                  value={rol}
-                  onChange={(e) => setRol(e.target.value)}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
-                >
-                  <option value="Vendedor">Vendedor</option>
-                  <option value="Limpieza">Limpieza</option>
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Rol / Cargo *</label>
+                  <select
+                    value={rol}
+                    onChange={(e) => setRol(e.target.value)}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium"
+                  >
+                    <option value="Vendedor">Vendedor</option>
+                    <option value="Limpieza">Limpieza</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                    <Palmtree className="w-3.5 h-3.5 text-emerald-600" />
+                    Días Vacaciones Anuales *
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    required
+                    value={diasVacacionesTotales}
+                    onChange={(e) => setDiasVacacionesTotales(Number(e.target.value))}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
 
               {/* Selector de Locales Habilitados */}

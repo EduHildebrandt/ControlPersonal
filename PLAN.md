@@ -1,57 +1,72 @@
-# Master Roadmap: Sistema de Control de Personal y Gestión de Turnos
+# Plan de Implementación: Sistema de Vacaciones y Generación de Datos de Producción (25 Empleados, 5 Locales, Turnos 1/11 - 11/11)
 
-## 1. Visión General del Proyecto
-Sistema integral para la gestión de empleados, sucursales/locales, asignación de turnos (24/7 con turnos nocturnos y rotativos), prevención de solapamientos horarios y generación de reportes mensuales con cálculo automatizado y exportación a PDF y Excel.
-
-## 2. Stack Tecnológico & Decisiones de Negocio
-- **Frontend / Framework Fullstack**: Next.js 15 (App Router, Server Actions, TypeScript).
-- **UI / Estilos**: Tailwind CSS, Lucide Icons, Shadcn/UI (Radix Primitives) con estética Glassmorphism limpia y moderna.
-- **Base de Datos & ORM**: PostgreSQL en **Supabase** con **Prisma ORM**.
-- **Modelo de Turnos**: Híbrido:
-  - Turnos **Puntuales**: Asignados a una fecha de calendario específica (`fecha`).
-  - Turnos **Recurrentes**: Asignados a un día de la semana (`dia_semana` 1-7) aplicables de forma sistemática o plantilla semanal.
-- **Cálculo de Horas**: Totalización de horas brutas efectivas (soporta turnos que cruzan medianoche, sin recargo diferencial nocturno).
-- **Exportación de Datos**: ExcelJS (XLSX/CSV) y jsPDF / AutoTable (PDF profesional para impresión).
-- **Validaciones**: Zod + validación de solapamiento en servidor y feedback visual inmediato.
+## 1. Contexto y Objetivos
+El usuario solicita:
+1. **Módulo Integral de Vacaciones**:
+   - Capacidad de asignar a cada empleado la cantidad de días de vacaciones que le corresponden (`diasVacacionesTotales`).
+   - Contabilización y registro de vacaciones tomadas por cada empleado con control de saldo (Total Asignados, Días Tomados, Días Restantes).
+   - Vista en **Calendario Interactivo** para visualizar las vacaciones de todo el personal por mes y día.
+2. **Estructura de Base de Datos y Seed de Producción**:
+   - 5 locales oficiales: `MarMau`, `Punto 1`, `Punto 2`, `Punto 3` y `ModaShop`.
+   - 25 empleados aleatorios con datos realistas (DNI, teléfono, dirección, correo, rol: Vendedor o Limpieza, días de vacaciones).
+   - Asignación de turnos del **1/11 al 11/11**:
+     - Bloques de mínimo 2 horas y máximo 8 horas.
+     - Horarios por local:
+       - **Punto 1, Punto 2, Punto 3**: de 08:00 a 24:00.
+       - **MarMau**: de 06:00 a 03:00 (soporte cruce de medianoche).
+       - **ModaShop**: de 09:00 a 12:00 y de 16:00 a 21:00.
+     - Sin solapamientos horarios para el mismo empleado.
 
 ---
 
-## 3. Fases de Ejecución
+## 2. Arquitectura de Datos y Seguridad
+- **Prisma Schema**:
+  - `Empleado`: agregar `diasVacacionesTotales Int @default(14) @map("dias_vacaciones_totales")`.
+  - Nuevo modelo `Vacacion`:
+    - `id`, `empleadoId`, `fechaInicio`, `fechaFin`, `diasTomados`, `observaciones`, timestamps.
+    - Relación `Empleado -> Vacacion[]` con `onDelete: Cascade`.
+- **Row Level Security (RLS)**:
+  - Ejecutar `ALTER TABLE public.vacaciones ENABLE ROW LEVEL SECURITY;` y revocar accesos a `anon, authenticated` para mantener la base de datos de Supabase blindada.
 
-### Fase 1: Inicialización & Conexión Supabase
-- [x] Inicializar proyecto Next.js 15 (App Router, TypeScript, Tailwind CSS, Lucide, componentes base).
-- [x] Configurar Prisma ORM apuntando a PostgreSQL de Supabase.
-- [x] Generar `.env` y `.env.example` con `DATABASE_URL` y `DIRECT_URL` para Supabase (con pooler de sesiones/transacciones).
-- [x] Definir el esquema Prisma con soporte para turnos puntuales y recurrentes, locales y empleados.
-- [x] Preparar seed de datos iniciales realistas (`prisma/seed.js`).
+---
 
-### Fase 2: Gestión de Locales y Empleados (CRUDs Completos)
-- [x] CRUD de Locales / Sucursales (código, nombre, dirección, estado).
-- [x] CRUD de Empleados con asignación múltiple (N:M) a locales autorizados.
-- [x] Feedback con Toast notifications, estados de carga y empty states.
+## 3. Server Actions & Backend Logic
+- `src/actions/vacaciones.ts`:
+  - `getResumenVacaciones()`: calcula para cada empleado días totales, días tomados y saldo disponible.
+  - `getVacacionesCalendario(mes, anio)`: retorna períodos vacacionales activos para renderizar en el calendario mensual.
+  - `guardarVacacion({ empleadoId, fechaInicio, fechaFin, observaciones })`: valida rango de fechas, calcula días, valida saldo y registra.
+  - `eliminarVacacion(id)`: cancela período de vacación y revalida vistas.
+- `src/actions/empleados.ts`:
+  - Permitir leer y editar `diasVacacionesTotales` en `guardarEmpleado`.
+- `src/actions/turnos.ts`:
+  - Asegurar que para turnos puntuales se guarde `fecha` y `diaSemana` correspondiente.
 
-### Fase 3: Grilla Semanal 24/7 y Asignación de Turnos (Manual + Recurrente)
-- [x] Grilla semanal interactiva 24h para asignación de turnos (7 columnas Lun-Dom).
-- [x] Modal intuitivo con selector de tipo: Turno Puntual (Fecha específica) o Turno Recurrente (Día semanal).
-- [x] Manejo de cruce de medianoche (ej. 22:00 a 06:00 = 8h) con badge identificador.
-- [x] Algoritmo de validación contra solapamientos de horario para el mismo empleado (`validarConflictoRecurrente`).
+---
 
-### Fase 4: Motor de Cálculo y Módulo de Reportes Mensuales
-- [x] Algoritmo de consolidación de horas del mes por empleado y por local (`consolidarHorasMensuales`).
-- [x] Pantalla de Reportes con selector de Empleado, Mes y Año.
-- [x] Tarjetas KPI (Total horas brutas, distribución por local con barras de progreso, turnos cumplidos).
-- [x] Exportación descargable en Excel (`.xlsx`) con múltiples pestañas y estilos corporativos.
-- [x] Exportación a PDF imprimible con membrete y tablas automáticas (`jspdf-autotable`).
+## 4. Frontend y Experiencia de Usuario (UI/UX)
+- **Nuevo Módulo de Navegación**:
+  - Agregar enlace `/vacaciones` en `AppShell.tsx` (desktop y drawer móvil) con ícono de vacaciones (`CalendarRange` / `Palmtree`).
+- **Página `/vacaciones` (`VacacionesClient.tsx`)**:
+  - KPIs de cabecera: Colaboradores totales, Colaboradores de vacaciones este mes, Días asignados y tomados.
+  - Pestaña 1: **Calendario Mensual**:
+    - Navegación mes a mes con selector de año.
+    - Casilleros por día con badges visuales de empleados en vacaciones.
+    - Filtro por colaborador para ver el cronograma personal.
+  - Pestaña 2: **Control de Saldos**:
+    - Tabla responsiva y tarjetas móviles con barra de progreso de días consumidos vs. disponibles.
+    - Botón para registrar o cancelar vacaciones.
+- **Actualización en `/empleados`**:
+  - Formulario de alta/edición incluye campo "Días de Vacaciones Asignados".
+  - Muestra saldo de vacaciones en la tarjeta/fila del empleado.
+- **Actualización en `/turnos`**:
+  - Selector de semana / período (permitir ver la semana del 01/11 al 07/11 y del 08/11 al 14/11) para que los turnos puntuales de noviembre se visualicen claramente en la grilla 24/7.
 
-### Fase 5: Auditoría, UX y Verificación
-- [x] Verificación de estados UI (Loading, Empty, Error handling).
-- [x] Validación de build en Next.js 15: `next build` superado con 0 errores de compilación y tipado.
-- [x] Soporte de Impresión Profesional para la Grilla de Turnos 24/7 (botón "Imprimir Grilla" + vista apaisada y cabecera de informe).
-- [x] Base de Datos sincronizada con los 5 locales oficiales: **MarMau**, **ModaShop**, **Punto 1**, **Punto 2**, **Punto 3**.
-- [x] Flujo de Bajas de Sucursales en 2 pasos: Baja Lógica (inactivación con confirmación) y Baja Definitiva (borrado físico con advertencia modal).
-- [x] Flujo de Bajas de Personal en 2 pasos: Baja Lógica (inactivación en nómina con confirmación) y Baja Definitiva (borrado permanente con advertencia modal).
-- [x] Sistema de Autenticación y Control de Accesos por Roles (Superusuario y Supervisor):
-  - Pantalla `/login` con sesión JWT en cookie segura HttpOnly.
-  - Middleware de protección de rutas y restricción a `/usuarios`.
-  - Panel exclusivo de Superusuario para crear, alternar estado y eliminar cuentas de supervisores.
-  - Blindaje en Server Actions: solo `SUPERUSUARIO` puede ejecutar `darBajaDefinitivaLocal` y `darBajaDefinitivaEmpleado`.
+---
+
+## 5. Seed Script y Ejecución
+- Crear script `scripts/seed-produccion-25emp.js` que:
+  - Crea o actualiza los 5 locales.
+  - Crea 25 empleados con datos realistas argentinos, roles (Vendedor/Limpieza) y días de vacaciones.
+  - Genera turnos de trabajo válidos desde el 1/11/2026 hasta el 11/11/2026 respetando los horarios de cada local y sin colisiones de horario.
+  - Registra algunas vacaciones de muestra para que el calendario y control de saldos tengan datos reales inmediatos.
+  - Sincroniza RLS en Supabase.

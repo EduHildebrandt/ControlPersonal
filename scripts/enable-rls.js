@@ -11,6 +11,7 @@ async function main() {
     "empleado_locales",
     "asignaciones_turnos",
     "registros_horas",
+    "vacaciones",
   ];
 
   for (const table of tables) {

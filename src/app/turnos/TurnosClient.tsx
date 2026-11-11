@@ -76,6 +76,7 @@ export function TurnosClient({
   const [turnos, setTurnos] = useState<TurnoItem[]>(initialTurnos);
   const [filtroLocal, setFiltroLocal] = useState<string>("ALL");
   const [filtroEmpleado, setFiltroEmpleado] = useState<string>("ALL");
+  const [filtroTipo, setFiltroTipo] = useState<"ALL" | "RECURRENTE" | "PUNTUAL">("ALL");
   const [modalOpen, setModalOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -185,6 +186,7 @@ export function TurnosClient({
   const turnosFiltrados = turnos.filter((t) => {
     if (filtroLocal !== "ALL" && t.localId !== filtroLocal) return false;
     if (filtroEmpleado !== "ALL" && t.empleadoId !== filtroEmpleado) return false;
+    if (filtroTipo !== "ALL" && t.tipo !== filtroTipo) return false;
     return true;
   });
 
@@ -261,7 +263,7 @@ export function TurnosClient({
           <span>Filtros:</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 flex-1">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 flex-1">
           {/* Local Filter */}
           <div className="flex items-center gap-2">
             <label className="text-slate-600 font-medium shrink-0">Local:</label>
@@ -295,13 +297,28 @@ export function TurnosClient({
               ))}
             </select>
           </div>
+
+          {/* Modalidad Filter */}
+          <div className="flex items-center gap-2">
+            <label className="text-slate-600 font-medium shrink-0">Tipo:</label>
+            <select
+              value={filtroTipo}
+              onChange={(e) => setFiltroTipo(e.target.value as any)}
+              className="w-full px-2.5 py-1.5 rounded-md border border-slate-300 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+            >
+              <option value="ALL">Todos (Semanales y Puntuales)</option>
+              <option value="RECURRENTE">Solo Semanales Recurrentes</option>
+              <option value="PUNTUAL">Solo Fechas Puntuales</option>
+            </select>
+          </div>
         </div>
 
-        {(filtroLocal !== "ALL" || filtroEmpleado !== "ALL") && (
+        {(filtroLocal !== "ALL" || filtroEmpleado !== "ALL" || filtroTipo !== "ALL") && (
           <button
             onClick={() => {
               setFiltroLocal("ALL");
               setFiltroEmpleado("ALL");
+              setFiltroTipo("ALL");
             }}
             className="text-blue-600 hover:underline font-medium text-xs self-end sm:self-center"
           >
@@ -342,9 +359,7 @@ export function TurnosClient({
       {/* Grilla Semanal: 1 columna en móvil, 2 en tablets, 7 en notebooks / escritorios */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3 print-grid-7">
         {diasAMostrar.map((dia) => {
-          const turnosDelDia = turnosFiltrados.filter(
-            (t) => t.tipo === "RECURRENTE" && t.diaSemana === dia.id
-          );
+          const turnosDelDia = turnosFiltrados.filter((t) => t.diaSemana === dia.id);
 
           const totalHorasDia = turnosDelDia.reduce((acc, curr) => acc + curr.duracionHoras, 0);
 
@@ -399,14 +414,26 @@ export function TurnosClient({
                           {turno.horaInicio} - {turno.horaFin}
                         </span>
 
-                        {turno.cruzaMedianoche && (
-                          <span
-                            className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-800 text-[10px] font-semibold shrink-0"
-                            title="Turno nocturno: Cruza la medianoche"
-                          >
-                            <Moon className="w-2.5 h-2.5 no-print" /> Nocturno
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {turno.tipo === "PUNTUAL" && turno.fecha && (
+                            <span
+                              className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 text-[10px] font-bold"
+                              title={`Fecha puntual: ${new Date(turno.fecha).toLocaleDateString("es-ES")}`}
+                            >
+                              <CalendarIcon className="w-2.5 h-2.5 no-print" />
+                              {new Date(turno.fecha).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit" })}
+                            </span>
+                          )}
+
+                          {turno.cruzaMedianoche && (
+                            <span
+                              className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-800 text-[10px] font-semibold"
+                              title="Turno nocturno: Cruza la medianoche"
+                            >
+                              <Moon className="w-2.5 h-2.5 no-print" /> Nocturno
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Empleado info */}

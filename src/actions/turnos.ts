@@ -106,6 +106,15 @@ export async function guardarTurno(formData: {
       }
     }
 
+    // Calcular día de la semana correspondiente
+    let diaFinal = diaSemana;
+    let fechaFinal = null;
+    if (tipo === "PUNTUAL" && fecha) {
+      fechaFinal = new Date(fecha + "T12:00:00.000Z");
+      const dIndex = fechaFinal.getUTCDay();
+      diaFinal = dIndex === 0 ? 7 : dIndex;
+    }
+
     // 4. Guardar o Actualizar turno
     let turno;
     if (id) {
@@ -115,8 +124,8 @@ export async function guardarTurno(formData: {
           empleadoId,
           localId,
           tipo,
-          diaSemana: tipo === "RECURRENTE" ? diaSemana : null,
-          fecha: tipo === "PUNTUAL" && fecha ? new Date(fecha) : null,
+          diaSemana: diaFinal,
+          fecha: fechaFinal,
           horaInicio,
           horaFin,
           cruzaMedianoche,
@@ -130,8 +139,8 @@ export async function guardarTurno(formData: {
           empleadoId,
           localId,
           tipo,
-          diaSemana: tipo === "RECURRENTE" ? diaSemana : null,
-          fecha: tipo === "PUNTUAL" && fecha ? new Date(fecha) : null,
+          diaSemana: diaFinal,
+          fecha: fechaFinal,
           horaInicio,
           horaFin,
           cruzaMedianoche,

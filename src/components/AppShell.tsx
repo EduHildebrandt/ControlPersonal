@@ -17,6 +17,7 @@ import {
   UserCog,
   LogOut,
   User as UserIcon,
+  Palmtree,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { href: "/locales", label: "Locales / Sucursales", icon: Building2 },
   { href: "/turnos", label: "Grilla de Turnos 24/7", icon: CalendarDays },
   { href: "/reportes", label: "Reportes Mensuales", icon: FileSpreadsheet },
+  { href: "/vacaciones", label: "Control de Vacaciones", icon: Palmtree },
 ];
 
 interface AppShellProps {
