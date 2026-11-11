@@ -362,12 +362,11 @@ async function main() {
               diaSemana: diaSemana,
               horaInicio: turnoTemplate.inicio,
               horaFin: turnoTemplate.fin,
-              horasPactadas: turnoTemplate.duracion,
+              duracionHoras: turnoTemplate.duracion,
+              cruzaMedianoche: turnoTemplate.cruza,
               tipo: "PUNTUAL",
-              color: conf.local.codigo === "MARMAU" ? "#3b82f6" :
-                     conf.local.codigo === "MODASHOP" ? "#ec4899" :
-                     conf.local.codigo === "PUNTO-1" ? "#10b981" :
-                     conf.local.codigo === "PUNTO-2" ? "#f59e0b" : "#8b5cf6",
+              notas: `Turno asignado en ${conf.local.nombreLocal}`,
+              activo: true,
             },
           });
 
